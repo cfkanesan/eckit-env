@@ -1,6 +1,5 @@
-Cython
-geopandas
+findlibs
+numpy
 pytest
 pyyaml
 scipy
-xarray

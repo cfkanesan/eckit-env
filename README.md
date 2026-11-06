@@ -1,7 +1,8 @@
 # eckit-env
 
 Development environment for eckit's `eckit.geo.Search` Python API, and its use in
-`grid_process/grid_interp.py` (nearest-neighbour searches for grid interpolation).
+`grid_process/grid_interp.py`: the temperature interpolations `interp_temp` and
+`interp_temp_fixgrad`, with their nearest-neighbour searches done by eckit.
 
 - `eckit/`: eckit (submodule, branch `feature/geo-search-batch` of
   [cfkanesan/eckit](https://github.com/cfkanesan/eckit)), built by spack from this checkout
@@ -71,8 +72,8 @@ echo "export ECKIT_DIR=$PWD/.spack-env/view" >> venv/bin/activate
   the import fails with `ModuleNotFoundError: unable to find eckitlib.eckit`. If you run
   `venv/bin/python` without activating the venv, export `ECKIT_DIR` yourself.
 - `pyyaml` (in `requirements.txt`) is needed by eckit to build a search.
-- `scipy` is only needed by the tests, the benchmark, and the `linear`/`cubic` methods
-  on unstructured grids. `grid_interp.py` no longer imports it at module level.
+- `scipy` is only needed by the benchmark (for the original version,
+  `grid_interp_scipy.py`). `grid_interp.py` needs only numpy and eckit.
 
 ### 5. Check the setup
 
@@ -81,17 +82,14 @@ source venv/bin/activate
 python -c "import eckit.geo; print(eckit.geo.Search)"
 ```
 
-Then run the tests that cover the nearest-neighbour code:
+Then run the tests:
 
 ```bash
 cd grid_process
-python -m pytest -k "nn_lookup or interp_idw or interp_nearest or interp_upscaled or interp_temp or interp_snowlim or fillna_alt or grid_assignation or compute_dist_weight or sounding_batch"
+python -m pytest
 ```
 
-Expected: `12 passed, 68 deselected`. The other 68 tests need modules from the parent
-project that are not in this repo (the data model `dm`, `ds_utils`, `CONFIG`), so they
-fail here with `NameError: name 'dm' is not defined` or
-`ModuleNotFoundError: No module named 'ds_utils'`.
+Expected: `6 passed`.
 
 ## Benchmark: eckit Search vs scipy KDTree
 
