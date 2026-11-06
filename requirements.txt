@@ -1,0 +1,6 @@
+Cython
+geopandas
+pytest
+pyyaml
+scipy
+xarray

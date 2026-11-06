@@ -1,0 +1,3 @@
+[submodule "eckit"]
+	path = eckit
+	url = git@github.com:cfkanesan/eckit.git

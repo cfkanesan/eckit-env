@@ -1,0 +1,18 @@
+# This is a Spack Environment file.
+#
+# It describes a set of packages to be installed, along with
+# configuration settings.
+spack:
+  # add package specs to the `specs` list
+  specs:
+  - eckit@git.develop=2.5.0+curl~mpi+python+ssl+proj build_type=Release compression=lz4 linalg=none
+  - py-pytest
+  view: true
+  concretizer:
+    unify: true
+  develop:
+    eckit:
+      spec: eckit@git.develop=2.5.0
+      path: ./eckit
+  repos:
+    eckit_dev: /users/ckanesan/eckit-env/repos/spack_repo/eckit_dev
