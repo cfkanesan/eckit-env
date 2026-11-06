@@ -1,51 +1,124 @@
 # eckit-env
 
-Development environment for eckit (spack environment, with eckit built from the
-`./eckit` checkout) and a Python venv for `grid_interp.py`.
+Development environment for eckit's `eckit.geo.Search` Python API, and its use in
+`grid_process/grid_interp.py` (nearest-neighbour searches for grid interpolation).
 
-## Using the eckit Python bindings in the venv
+- `eckit/`: eckit (submodule, branch `feature/geo-search-batch` of
+  [cfkanesan/eckit](https://github.com/cfkanesan/eckit)), built by spack from this checkout
+- `spack.yaml`, `repos/`: spack environment and the local package recipes it uses
+- `grid_process/`: `grid_interp.py` (eckit version), `grid_interp_scipy.py` (original
+  scipy version), tests, and the benchmark comparing both
+- `requirements.txt`: Python packages for the venv
 
-The venv (`venv/`) is created from the spack view's Python (3.14.5), the same
-interpreter the eckit bindings are built for, so the already built package can be
-linked in, without compiling anything.
+## Getting started from a fresh clone
 
-### 1. Link the package and install its missing dependency
+### Prerequisites
+
+- [spack](https://spack.io) (tested with 1.2.0), with a C++ compiler it knows about
+- SSH access to GitHub (the `eckit` submodule URL is `git@github.com:cfkanesan/eckit.git`)
+
+### 1. Clone with the eckit submodule
 
 ```bash
-cd /users/ckanesan/eckit-env
-ln -s "$PWD/.spack-env/view/lib/python3.14/site-packages/eckit" venv/lib/python3.14/site-packages/eckit
-venv/bin/pip install pyyaml
+git clone --recurse-submodules https://github.com/cfkanesan/eckit-env.git
+cd eckit-env
 ```
 
-`pyyaml` is needed by eckit to build a search (spec parsing), and is not otherwise
-installed in the venv.
+If you already cloned without `--recurse-submodules`, run `git submodule update --init`.
 
-### 2. Tell findlibs where `libeckit.so` is
+### 2. Point spack at the local package repo
 
-`import eckit` locates the C++ library with `findlibs`. This works inside the spack
-view (the library is under `sys.prefix`), but not in the venv. Set `ECKIT_DIR`, for
-example in the venv activation script:
+`spack.yaml` lists the local package repo by absolute path
+(`/users/ckanesan/eckit-env/repos/spack_repo/eckit_dev`). If your clone is anywhere
+else, change that line to a path relative to the environment:
+
+```yaml
+  repos:
+    eckit_dev: $env/repos/spack_repo/eckit_dev
+```
+
+### 3. Build eckit and its Python bindings with spack
 
 ```bash
+. /path/to/spack/share/spack/setup-env.sh
+spack -e . concretize -f
+spack -e . install -j 16
+```
+
+`spack.lock` and `.spack-env/` are not in git, so the first `concretize` resolves
+everything from scratch. The build of eckit uses the `./eckit` checkout (a `develop`
+spec), in Release mode (`build_type=Release` in `spack.yaml`).
+
+On a shared machine, keep `-j` modest: without it, spack uses every core.
+
+The environment view (`.spack-env/view`) then holds `libeckit.so`, the Python
+interpreter (3.14) and the `eckit` Python package.
+
+### 4. Create the venv
+
+The venv is created from the view's Python, the interpreter the eckit bindings are
+built for, so the built package can be linked in without compiling anything.
+
+```bash
+.spack-env/view/bin/python -m venv venv
+venv/bin/pip install -r requirements.txt
+ln -s "$PWD/.spack-env/view/lib/python3.14/site-packages/eckit" venv/lib/python3.14/site-packages/eckit
 echo "export ECKIT_DIR=$PWD/.spack-env/view" >> venv/bin/activate
+```
+
+- `import eckit` finds `libeckit.so` with `findlibs`. That works inside the spack view
+  (the library is under `sys.prefix`) but not in the venv, hence `ECKIT_DIR`. Without it
+  the import fails with `ModuleNotFoundError: unable to find eckitlib.eckit`. If you run
+  `venv/bin/python` without activating the venv, export `ECKIT_DIR` yourself.
+- `pyyaml` (in `requirements.txt`) is needed by eckit to build a search.
+- `scipy` is only needed by the tests, the benchmark, and the `linear`/`cubic` methods
+  on unstructured grids. `grid_interp.py` no longer imports it at module level.
+
+### 5. Check the setup
+
+```bash
 source venv/bin/activate
 python -c "import eckit.geo; print(eckit.geo.Search)"
 ```
 
-Without it, the import fails with:
+Then run the tests that cover the nearest-neighbour code:
 
+```bash
+cd grid_process
+python -m pytest -k "nn_lookup or interp_idw or interp_nearest or interp_upscaled or interp_temp or interp_snowlim or fillna_alt or grid_assignation or compute_dist_weight or sounding_batch"
 ```
-ModuleNotFoundError: unable to find eckitlib.eckit
+
+Expected: `12 passed, 68 deselected`. The other 68 tests need modules from the parent
+project that are not in this repo (the data model `dm`, `ds_utils`, `CONFIG`), so they
+fail here with `NameError: name 'dm' is not defined` or
+`ModuleNotFoundError: No module named 'ds_utils'`.
+
+## Benchmark: eckit Search vs scipy KDTree
+
+`grid_process/bench.py` times `nn_lookup` from two versions of `grid_interp.py` (tree
+build and queries, 2D and 3D, grids of 10k to 1.1M points, 1k or 100k query points,
+k = 1, 4, 36) and checks that they return the same neighbours. `report.py` renders the
+results as an HTML page (`nn_lookup_benchmark.html` holds the latest results).
+
+```bash
+cd grid_process
+taskset -c 96-103 ../venv/bin/python bench.py grid_interp_scipy.py grid_interp.py bench.json
+../venv/bin/python report.py bench.json nn_lookup_benchmark.html [previous_bench.json]
 ```
 
-If you run `venv/bin/python` without activating the venv, export `ECKIT_DIR`
-yourself (e.g. in your shell profile).
+- `taskset` pins the run to 8 cores: the scipy version queries with `workers=-1`, which
+  otherwise uses every core of the machine. Pick cores that are free.
+- The full run takes a few minutes with a Release build of eckit (much longer with Debug).
+- The optional third argument of `report.py` is an earlier results file, shown in the
+  table's "eckit Debug" column.
 
-### Notes
+## Working on eckit
 
-- The link points to the spack view, so it follows rebuilds of the develop checkout
-  of eckit by spack.
-- The extensions are built for CPython 3.14 (`cpython-314`). If the Python version
-  of the spack environment changes, recreate the venv and the link.
-- Alternatively, build the bindings from source with `pip install ./eckit/python/eckit`.
-  This requires Cython and the eckit headers and libraries to be found at build time.
+Edit the code in `eckit/`, then rebuild and reinstall with `spack -e . install`. The
+venv link points into the spack view, so it picks up the new build. If the Python
+version of the spack environment changes, the `cpython-314` extensions no longer load:
+recreate the venv and the link.
+
+Alternatively, build the bindings into the venv from source with
+`pip install ./eckit/python/eckit`. This requires Cython and the eckit headers and
+libraries to be found at build time.
