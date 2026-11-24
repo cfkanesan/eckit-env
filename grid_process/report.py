@@ -176,6 +176,9 @@ dot2 = dot_plot([r for r in rows_sorted if r["dim"] == 2], "c1t")
 dot3 = dot_plot([r for r in rows_sorted if r["dim"] == 3], "c2t")
 bd = breakdown([r for r in rows_sorted if r["n"] == max(x["n"] for x in R) and r["dim"] == 2 and r["k"] in (1, 36)], "c3t")
 
+prev_note = (f" Against the previous run (last column of the table) eckit takes "
+             f"{x_fmt(geomean([r['new'] / dbg(r)['new'] for r in R if dbg(r)]))} its earlier time (geometric mean).") if DEBUG else ""
+
 page = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -278,7 +281,7 @@ ul {{ margin: 0; padding-left: 20px; color: var(--ink-2); max-width: 68ch; displ
 <section>
   <h2>Reading the numbers</h2>
   <ul>
-    <li>The Release build fixed the tree build: {fmt_t(geomean([r['ek_build'] for r in big]))} for eckit vs {fmt_t(geomean([r['kd_build'] for r in big]))} for scipy at N = {fmt_n(big[0]['n'])}. The earlier Debug build took about 3 s. Overall eckit is {x_fmt(geomean([dbg(r)['new'] / r['new'] for r in R if dbg(r)]))} faster than with Debug (geometric mean; last column of the table).</li>
+    <li>Tree build: {fmt_t(geomean([r['ek_build'] for r in big]))} for eckit vs {fmt_t(geomean([r['kd_build'] for r in big]))} for scipy at N = {fmt_n(big[0]['n'])}.{prev_note}</li>
     <li>With few query points (POIs) the tree build dominates, so eckit and the original are at parity: {x_fmt(geomean([ratio(r) for r in poi]))} the original's time on average.</li>
     <li>With many query points eckit is slower, and the gap grows with k: at Q = 100k it takes {x_fmt(geomean([ratio(r) for r in g2g if r['k'] == 1]))} the original's time at k = 1 and {x_fmt(geomean([ratio(r) for r in g2g if r['k'] == 36]))} at k = 36. Against single-threaded scipy the factors are {x_fmt(geomean([ratio(r, 'orig_1') for r in g2g if r['k'] == 1]))} and {x_fmt(geomean([ratio(r, 'orig_1') for r in g2g if r['k'] == 36]))}.</li>
     <li>Three causes, roughly in order: the original queries on all cores ({ncores} here, up to 256 on the full node) while eckit queries run on one thread; eckit's k-d tree query is slower per thread than scipy's at large k; and the per-point Python loop. A separate single-thread check (1M points, 100k queries) put eckit's own C++ batch query at 0.49 s (k = 4) and 2.05 s (k = 36), with the Python loop about 25% slower than that.</li>
@@ -290,7 +293,7 @@ ul {{ margin: 0; padding-left: 20px; color: var(--ink-2); max-width: 68ch; displ
   <h2>All results</h2>
   <div class="figure scroll"><table>
     <thead><tr><th>Dim</th><th>N</th><th>Q</th><th>k</th><th>scipy -1</th><th>scipy 1</th><th>eckit</th>
-    <th>KDTree build</th><th>eckit build</th><th>eckit / scipy -1</th><th>eckit / scipy 1</th><th>Same idx</th><th>eckit Debug</th></tr></thead>
+    <th>KDTree build</th><th>eckit build</th><th>eckit / scipy -1</th><th>eckit / scipy 1</th><th>Same idx</th><th>eckit previous</th></tr></thead>
     <tbody>{table_rows}</tbody>
   </table></div>
   <p class="meta">Best of 3 runs for small cases, 1 run for large ones. Ratios above 1× mean eckit is slower.</p>

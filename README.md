@@ -108,7 +108,7 @@ taskset -c 96-103 ../venv/bin/python bench.py grid_interp_scipy.py grid_interp.p
   otherwise uses every core of the machine. Pick cores that are free.
 - The full run takes a few minutes with a Release build of eckit (much longer with Debug).
 - The optional third argument of `report.py` is an earlier results file, shown in the
-  table's "eckit Debug" column.
+  table's "eckit previous" column and summarised under "Reading the numbers".
 
 ## Working on eckit
 
