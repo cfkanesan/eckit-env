@@ -83,7 +83,7 @@ def breakdown(rows, title_id):
     left, right, top, rowh, barh = 210, 70, 18, 34, 18
     width = 760
     plot_w = width - left - right
-    tmax = max(max(r["kd_build"] + (r["orig_1"] - r["kd_build"]), r["new"]) for r in rows)
+    tmax = max(max(r["orig_all"], r["kd_build"], r["new"]) for r in rows)
     step = 10 ** math.floor(math.log10(tmax))
     for m in (1, 2, 5, 10):
         if tmax / (step * m) <= 6:
@@ -105,8 +105,8 @@ def breakdown(rows, title_id):
     i = 0
     for r in rows:
         for name, b, q, cls in (
-            ("scipy, 1 thread", r["kd_build"], max(r["orig_1"] - r["kd_build"], 0), "s2"),
-            ("eckit", r["ek_build"], max(r["ek_query"], 0), "s3"),
+            (f"scipy, {ncores} threads", r["kd_build"], max(r["orig_all"] - r["kd_build"], 0), "s1"),
+            (f"eckit, {ek_threads} threads", r["ek_build"], max(r["ek_query"], 0), "s3"),
         ):
             y = top + rowh * i
             if i % 2 == 0:
@@ -135,6 +135,10 @@ g2g = [r for r in R if r["q"] == max(x["q"] for x in R)]
 agree = min(r["same_idx"] for r in R)
 max_rel = max(r["max_rel"] for r in R)
 ncores = len(meta["cpus"])
+ek_threads = meta.get("eckit_threads", 1)
+small = min((r for r in poi if r['dim'] == 2 and r['k'] == 1), key=lambda r: r['n'])
+
+
 
 
 def tile(lbl, val, note):
@@ -151,9 +155,10 @@ def dbg(r):
 
 tiles = "".join([
     tile("eckit time vs original", x_fmt(geomean(r_all)),
-         f"geometric mean over {len(R)} cases, original on {ncores} threads"),
+         f"geometric mean over {len(R)} cases, both on {ncores} threads" if ek_threads == ncores
+         else f"geometric mean over {len(R)} cases, original on {ncores} threads, eckit on {ek_threads}"),
     tile("POI cases (Q = 1k)", x_fmt(geomean([ratio(r) for r in poi])),
-         "eckit time vs original, geometric mean; at parity"),
+         "eckit time vs original, geometric mean"),
     tile("Grid-to-grid (Q = 100k)", x_fmt(geomean([ratio(r) for r in g2g])),
          "eckit time vs original, geometric mean"),
     tile("Identical neighbours", f"{agree * 100:.4f}%",
@@ -232,7 +237,7 @@ header, section {{ display: grid; gap: 12px; min-width: 0; }}
 .dot.s2, .sw.s2 {{ fill: var(--s2); background: var(--s2); }}
 .dot.s3, .sw.s3 {{ fill: var(--s3); background: var(--s3); }}
 .build {{ fill-opacity: 0.35; }}
-.build.s2 {{ fill: var(--s2); }} .build.s3 {{ fill: var(--s3); }}
+.build.s1 {{ fill: var(--s1); }} .build.s2 {{ fill: var(--s2); }} .build.s3 {{ fill: var(--s3); }}
 .pt:hover .dot {{ stroke: var(--ink); }}
 .legend {{ display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); }}
 .key {{ display: inline-flex; align-items: center; gap: 6px; }}
@@ -252,10 +257,12 @@ ul {{ margin: 0; padding-left: 20px; color: var(--ink-2); max-width: 68ch; displ
 <header>
   <h1>nn_lookup: scipy KDTree vs eckit Search</h1>
   <p>Time for <code>nn_lookup(grid_coords, points, k)</code> in <code>grid_interp.py</code>, before (scipy
-  <code>KDTree</code>) and after (eckit <code>Search.from_xyz</code>). Each run builds the tree and queries every point,
-  as <code>nn_lookup</code> does on a cache miss.</p>
+  <code>KDTree</code>, <code>workers=-1</code>) and after (eckit <code>Search.from_xyz</code>, then one batch
+  <code>csr_search_xyz</code> call for all points, on {ek_threads} OpenMP thread{'s' if ek_threads != 1 else ''},
+  <code>ECKIT_GEO_SEARCH_NUM_THREADS</code>). Each run builds the tree and queries every point, as <code>nn_lookup</code>
+  does on a cache miss.</p>
   <div class="meta">{html.escape(meta['cpu'])} · pinned to {ncores} cores ({meta['cpus'][0]}–{meta['cpus'][-1]}) ·
-  Python {meta['python']} · numpy {meta['numpy']} · scipy {meta['scipy']} · eckit 2.5.0 develop (Release build) ·
+  Python {meta['python']} · numpy {meta['numpy']} · scipy {meta['scipy']} · eckit 2.5.0 develop (Release build, OpenMP, {ek_threads} threads) ·
   host load {meta['load'][0]:.0f}/256 · {meta['date']}</div>
 </header>
 
@@ -272,9 +279,9 @@ ul {{ margin: 0; padding-left: 20px; color: var(--ink-2); max-width: 68ch; displ
 
 <section>
   <h2>Where the time goes at N = {fmt_n(max(x['n'] for x in R))}</h2>
-  <p>Single-threaded scipy vs eckit, split into tree build (light) and queries (solid).</p>
-  <div class="legend"><span class="key"><i class="sw sq light s2"></i><i class="sw sq s2"></i>scipy, 1 thread: build · queries</span>
-  <span class="key"><i class="sw sq light s3"></i><i class="sw sq s3"></i>eckit: build · queries</span></div>
+  <p>scipy (<code>workers=-1</code>) vs eckit, split into tree build (light) and queries (solid). Both builds are single-threaded.</p>
+  <div class="legend"><span class="key"><i class="sw sq light s1"></i><i class="sw sq s1"></i>scipy, {ncores} threads: build · queries</span>
+  <span class="key"><i class="sw sq light s3"></i><i class="sw sq s3"></i>eckit, {ek_threads} threads: build · queries</span></div>
   <div class="figure"><h3 id="c3t">2D, k = 1 and 36</h3><div class="scroll">{bd}</div></div>
 </section>
 
@@ -282,9 +289,9 @@ ul {{ margin: 0; padding-left: 20px; color: var(--ink-2); max-width: 68ch; displ
   <h2>Reading the numbers</h2>
   <ul>
     <li>Tree build: {fmt_t(geomean([r['ek_build'] for r in big]))} for eckit vs {fmt_t(geomean([r['kd_build'] for r in big]))} for scipy at N = {fmt_n(big[0]['n'])}.{prev_note}</li>
-    <li>With few query points (POIs) the tree build dominates, so eckit and the original are at parity: {x_fmt(geomean([ratio(r) for r in poi]))} the original's time on average.</li>
-    <li>With many query points eckit is slower, and the gap grows with k: at Q = 100k it takes {x_fmt(geomean([ratio(r) for r in g2g if r['k'] == 1]))} the original's time at k = 1 and {x_fmt(geomean([ratio(r) for r in g2g if r['k'] == 36]))} at k = 36. Against single-threaded scipy the factors are {x_fmt(geomean([ratio(r, 'orig_1') for r in g2g if r['k'] == 1]))} and {x_fmt(geomean([ratio(r, 'orig_1') for r in g2g if r['k'] == 36]))}.</li>
-    <li>Three causes, roughly in order: the original queries on all cores ({ncores} here, up to 256 on the full node) while eckit queries run on one thread; eckit's k-d tree query is slower per thread than scipy's at large k; and the per-point Python loop. A separate single-thread check (1M points, 100k queries) put eckit's own C++ batch query at 0.49 s (k = 4) and 2.05 s (k = 36), with the Python loop about 25% slower than that.</li>
+    <li>With few query points (POIs) the tree build dominates at large N, and eckit takes {x_fmt(geomean([ratio(r) for r in poi]))} the original's time on average. At small N, scipy with <code>workers=-1</code> takes {fmt_t(small['orig_all'])} where <code>workers=1</code> takes {fmt_t(small['orig_1'])} and eckit {fmt_t(small['new'])} (2D, N = {fmt_n(small['n'])}, k = 1): a fixed per-call cost of <code>workers=-1</code>, with no counterpart in eckit's threaded search.</li>
+    <li>With many query points (grid to grid), eckit on {ek_threads} threads takes {x_fmt(geomean([ratio(r) for r in g2g]))} the original's time on average: {x_fmt(geomean([ratio(r) for r in g2g if r['dim'] == 2]))} in 2D and {x_fmt(geomean([ratio(r) for r in g2g if r['dim'] == 3]))} in 3D. The slowest cases relative to scipy are 2D with small N and k ≥ 4, where scipy's multi-threaded queries are faster ({x_fmt(max(ratio(r) for r in g2g))} at worst). Against single-threaded scipy, eckit takes {x_fmt(geomean([ratio(r, 'orig_1') for r in g2g]))} the time.</li>
+    <li>Since the previous run, <code>nn_lookup</code> makes one batch <code>csr_search_xyz</code> call instead of one Python call per point, eckit queries on threads (OpenMP), and its k-d tree k-nearest search is about 2× faster.{(" Grid-to-grid cases take " + x_fmt(geomean([r['new'] / dbg(r)['new'] for r in g2g if dbg(r)])) + " their previous time, POI cases " + x_fmt(geomean([r['new'] / dbg(r)['new'] for r in poi if dbg(r)])) + ".") if DEBUG else ""}</li>
     <li>Results agree: neighbour indices identical in at least {agree * 100:.4f}% of queries, distances within {max_rel:.1e} relative.</li>
   </ul>
 </section>

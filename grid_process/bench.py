@@ -106,6 +106,7 @@ meta = dict(
     cpus=sorted(os.sched_getaffinity(0)),
     cpu=next((l.split(":", 1)[1].strip() for l in open("/proc/cpuinfo") if l.startswith("model name")), ""),
     python=platform.python_version(), numpy=np.__version__, scipy=scipy.__version__,
+    eckit_threads=int(os.environ.get("ECKIT_GEO_SEARCH_NUM_THREADS", "1")),
     host=platform.node(), date=time.strftime("%Y-%m-%d %H:%M"),
     load=os.getloadavg(),
 )

@@ -51,7 +51,7 @@ header, section { display: grid; gap: 12px; min-width: 0; }
 .dot.s2, .sw.s2 { fill: var(--s2); background: var(--s2); }
 .dot.s3, .sw.s3 { fill: var(--s3); background: var(--s3); }
 .build { fill-opacity: 0.35; }
-.build.s2 { fill: var(--s2); } .build.s3 { fill: var(--s3); }
+.build.s1 { fill: var(--s1); } .build.s2 { fill: var(--s2); } .build.s3 { fill: var(--s3); }
 .pt:hover .dot { stroke: var(--ink); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); }
 .key { display: inline-flex; align-items: center; gap: 6px; }
@@ -71,14 +71,16 @@ ul { margin: 0; padding-left: 20px; color: var(--ink-2); max-width: 68ch; displa
 <header>
   <h1>nn_lookup: scipy KDTree vs eckit Search</h1>
   <p>Time for <code>nn_lookup(grid_coords, points, k)</code> in <code>grid_interp.py</code>, before (scipy
-  <code>KDTree</code>) and after (eckit <code>Search.from_xyz</code>). Each run builds the tree and queries every point,
-  as <code>nn_lookup</code> does on a cache miss.</p>
+  <code>KDTree</code>, <code>workers=-1</code>) and after (eckit <code>Search.from_xyz</code>, then one batch
+  <code>csr_search_xyz</code> call for all points, on 8 OpenMP threads,
+  <code>ECKIT_GEO_SEARCH_NUM_THREADS</code>). Each run builds the tree and queries every point, as <code>nn_lookup</code>
+  does on a cache miss.</p>
   <div class="meta">AMD EPYC 7713 64-Core Processor · pinned to 8 cores (96–103) ·
-  Python 3.14.5 · numpy 2.5.4 · scipy 1.18.1 · eckit 2.5.0 develop (Release build) ·
-  host load 9/256 · 2026-11-19 17:01</div>
+  Python 3.14.5 · numpy 2.5.4 · scipy 1.18.1 · eckit 2.5.0 develop (Release build, OpenMP, 8 threads) ·
+  host load 12/256 · 2026-11-24 14:02</div>
 </header>
 
-<div class="tiles"><div class="tile"><div class="tl">eckit time vs original</div><div class="tv">2.6×</div><div class="tn">geometric mean over 30 cases, original on 8 threads</div></div><div class="tile"><div class="tl">POI cases (Q = 1k)</div><div class="tv">0.74×</div><div class="tn">eckit time vs original, geometric mean; at parity</div></div><div class="tile"><div class="tl">Grid-to-grid (Q = 100k)</div><div class="tv">8.9×</div><div class="tn">eckit time vs original, geometric mean</div></div><div class="tile"><div class="tl">Identical neighbours</div><div class="tv">99.9998%</div><div class="tn">worst case; max relative distance difference 1.2e-07</div></div></div>
+<div class="tiles"><div class="tile"><div class="tl">eckit time vs original</div><div class="tv">0.70×</div><div class="tn">geometric mean over 30 cases, both on 8 threads</div></div><div class="tile"><div class="tl">POI cases (Q = 1k)</div><div class="tv">0.43×</div><div class="tn">eckit time vs original, geometric mean</div></div><div class="tile"><div class="tl">Grid-to-grid (Q = 100k)</div><div class="tv">1.1×</div><div class="tn">eckit time vs original, geometric mean</div></div><div class="tile"><div class="tl">Identical neighbours</div><div class="tv">99.9998%</div><div class="tn">worst case; max relative distance difference 1.2e-07</div></div></div>
 
 <section>
   <h2>Time per case</h2>
@@ -88,323 +90,323 @@ ul { margin: 0; padding-left: 20px; color: var(--ink-2); max-width: 68ch; displa
   <div class="figure"><h3 id="c1t">2D coordinates (nearest, idw, upscaled, linear neighbour lookups)</h3><div class="scroll"><svg viewBox="0 0 760 526" role="img" aria-labelledby="c1t" class="chart">
 <line x1="210.0" x2="210.0" y1="20" y2="500" class="grid"/>
 <text x="210.0" y="516" class="tick" text-anchor="middle">1.0 ms</text>
-<line x1="341.5" x2="341.5" y1="20" y2="500" class="grid"/>
-<text x="341.5" y="516" class="tick" text-anchor="middle">10.0 ms</text>
-<line x1="473.0" x2="473.0" y1="20" y2="500" class="grid"/>
-<text x="473.0" y="516" class="tick" text-anchor="middle">100.0 ms</text>
-<line x1="604.5" x2="604.5" y1="20" y2="500" class="grid"/>
-<text x="604.5" y="516" class="tick" text-anchor="middle">1.00 s</text>
+<line x1="385.3" x2="385.3" y1="20" y2="500" class="grid"/>
+<text x="385.3" y="516" class="tick" text-anchor="middle">10.0 ms</text>
+<line x1="560.7" x2="560.7" y1="20" y2="500" class="grid"/>
+<text x="560.7" y="516" class="tick" text-anchor="middle">100.0 ms</text>
 <line x1="736.0" x2="736.0" y1="20" y2="500" class="grid"/>
-<text x="736.0" y="516" class="tick" text-anchor="middle">10.00 s</text>
+<text x="736.0" y="516" class="tick" text-anchor="middle">1.00 s</text>
 <text x="198" y="45.0" class="rowlab" text-anchor="end">2D · N=10k · Q=1k · k=1</text>
-<line x1="274.8" x2="402.9" y1="41.0" y2="41.0" class="span"/>
-<g class="pt"><circle cx="402.9" cy="41.0" r="11" class="hit"/><circle cx="402.9" cy="41.0" r="5" class="dot s1"/><title>2D · N=10k · Q=1k · k=1
-scipy KDTree, workers=-1 (original): 29.3 ms</title></g>
-<g class="pt"><circle cx="274.8" cy="41.0" r="11" class="hit"/><circle cx="274.8" cy="41.0" r="5" class="dot s2"/><title>2D · N=10k · Q=1k · k=1
-scipy KDTree, workers=1: 3.1 ms</title></g>
-<g class="pt"><circle cx="315.6" cy="41.0" r="11" class="hit"/><circle cx="315.6" cy="41.0" r="5" class="dot s3"/><title>2D · N=10k · Q=1k · k=1
-eckit Search (current): 6.4 ms</title></g>
-<text x="198" y="71.0" class="rowlab" text-anchor="end">2D · N=10k · Q=1k · k=4</text>
-<line x1="276.9" x2="402.3" y1="67.0" y2="67.0" class="span"/>
-<g class="pt"><circle cx="402.3" cy="67.0" r="11" class="hit"/><circle cx="402.3" cy="67.0" r="5" class="dot s1"/><title>2D · N=10k · Q=1k · k=4
-scipy KDTree, workers=-1 (original): 29.0 ms</title></g>
-<g class="pt"><circle cx="276.9" cy="67.0" r="11" class="hit"/><circle cx="276.9" cy="67.0" r="5" class="dot s2"/><title>2D · N=10k · Q=1k · k=4
+<line x1="297.7" x2="468.7" y1="41.0" y2="41.0" class="span"/>
+<g class="pt"><circle cx="468.7" cy="41.0" r="11" class="hit"/><circle cx="468.7" cy="41.0" r="5" class="dot s1"/><title>2D · N=10k · Q=1k · k=1
+scipy KDTree, workers=-1 (original): 29.9 ms</title></g>
+<g class="pt"><circle cx="297.7" cy="41.0" r="11" class="hit"/><circle cx="297.7" cy="41.0" r="5" class="dot s2"/><title>2D · N=10k · Q=1k · k=1
 scipy KDTree, workers=1: 3.2 ms</title></g>
-<g class="pt"><circle cx="327.8" cy="67.0" r="11" class="hit"/><circle cx="327.8" cy="67.0" r="5" class="dot s3"/><title>2D · N=10k · Q=1k · k=4
-eckit Search (current): 7.9 ms</title></g>
+<g class="pt"><circle cx="303.8" cy="41.0" r="11" class="hit"/><circle cx="303.8" cy="41.0" r="5" class="dot s3"/><title>2D · N=10k · Q=1k · k=1
+eckit Search (current): 3.4 ms</title></g>
+<text x="198" y="71.0" class="rowlab" text-anchor="end">2D · N=10k · Q=1k · k=4</text>
+<line x1="301.6" x2="468.5" y1="67.0" y2="67.0" class="span"/>
+<g class="pt"><circle cx="468.5" cy="67.0" r="11" class="hit"/><circle cx="468.5" cy="67.0" r="5" class="dot s1"/><title>2D · N=10k · Q=1k · k=4
+scipy KDTree, workers=-1 (original): 29.8 ms</title></g>
+<g class="pt"><circle cx="301.6" cy="67.0" r="11" class="hit"/><circle cx="301.6" cy="67.0" r="5" class="dot s2"/><title>2D · N=10k · Q=1k · k=4
+scipy KDTree, workers=1: 3.3 ms</title></g>
+<g class="pt"><circle cx="304.8" cy="67.0" r="11" class="hit"/><circle cx="304.8" cy="67.0" r="5" class="dot s3"/><title>2D · N=10k · Q=1k · k=4
+eckit Search (current): 3.5 ms</title></g>
 <text x="198" y="97.0" class="rowlab" text-anchor="end">2D · N=10k · Q=1k · k=36</text>
-<line x1="317.9" x2="402.3" y1="93.0" y2="93.0" class="span"/>
-<g class="pt"><circle cx="402.3" cy="93.0" r="11" class="hit"/><circle cx="402.3" cy="93.0" r="5" class="dot s1"/><title>2D · N=10k · Q=1k · k=36
-scipy KDTree, workers=-1 (original): 29.0 ms</title></g>
-<g class="pt"><circle cx="317.9" cy="93.0" r="11" class="hit"/><circle cx="317.9" cy="93.0" r="5" class="dot s2"/><title>2D · N=10k · Q=1k · k=36
-scipy KDTree, workers=1: 6.6 ms</title></g>
-<g class="pt"><circle cx="387.0" cy="93.0" r="11" class="hit"/><circle cx="387.0" cy="93.0" r="5" class="dot s3"/><title>2D · N=10k · Q=1k · k=36
-eckit Search (current): 22.2 ms</title></g>
+<line x1="321.2" x2="470.0" y1="93.0" y2="93.0" class="span"/>
+<g class="pt"><circle cx="470.0" cy="93.0" r="11" class="hit"/><circle cx="470.0" cy="93.0" r="5" class="dot s1"/><title>2D · N=10k · Q=1k · k=36
+scipy KDTree, workers=-1 (original): 30.4 ms</title></g>
+<g class="pt"><circle cx="354.7" cy="93.0" r="11" class="hit"/><circle cx="354.7" cy="93.0" r="5" class="dot s2"/><title>2D · N=10k · Q=1k · k=36
+scipy KDTree, workers=1: 6.7 ms</title></g>
+<g class="pt"><circle cx="321.2" cy="93.0" r="11" class="hit"/><circle cx="321.2" cy="93.0" r="5" class="dot s3"/><title>2D · N=10k · Q=1k · k=36
+eckit Search (current): 4.3 ms</title></g>
 <text x="198" y="123.0" class="rowlab" text-anchor="end">2D · N=10k · Q=100k · k=1</text>
-<line x1="402.6" x2="539.7" y1="119.0" y2="119.0" class="span"/>
-<g class="pt"><circle cx="402.6" cy="119.0" r="11" class="hit"/><circle cx="402.6" cy="119.0" r="5" class="dot s1"/><title>2D · N=10k · Q=100k · k=1
-scipy KDTree, workers=-1 (original): 29.2 ms</title></g>
-<g class="pt"><circle cx="431.8" cy="119.0" r="11" class="hit"/><circle cx="431.8" cy="119.0" r="5" class="dot s2"/><title>2D · N=10k · Q=100k · k=1
-scipy KDTree, workers=1: 48.6 ms</title></g>
-<g class="pt"><circle cx="539.7" cy="119.0" r="11" class="hit"/><circle cx="539.7" cy="119.0" r="5" class="dot s3"/><title>2D · N=10k · Q=100k · k=1
-eckit Search (current): 321.8 ms</title></g>
+<line x1="456.9" x2="520.0" y1="119.0" y2="119.0" class="span"/>
+<g class="pt"><circle cx="473.4" cy="119.0" r="11" class="hit"/><circle cx="473.4" cy="119.0" r="5" class="dot s1"/><title>2D · N=10k · Q=100k · k=1
+scipy KDTree, workers=-1 (original): 31.8 ms</title></g>
+<g class="pt"><circle cx="520.0" cy="119.0" r="11" class="hit"/><circle cx="520.0" cy="119.0" r="5" class="dot s2"/><title>2D · N=10k · Q=100k · k=1
+scipy KDTree, workers=1: 58.7 ms</title></g>
+<g class="pt"><circle cx="456.9" cy="119.0" r="11" class="hit"/><circle cx="456.9" cy="119.0" r="5" class="dot s3"/><title>2D · N=10k · Q=100k · k=1
+eckit Search (current): 25.6 ms</title></g>
 <text x="198" y="149.0" class="rowlab" text-anchor="end">2D · N=10k · Q=100k · k=4</text>
-<line x1="408.4" x2="567.6" y1="145.0" y2="145.0" class="span"/>
-<g class="pt"><circle cx="408.4" cy="145.0" r="11" class="hit"/><circle cx="408.4" cy="145.0" r="5" class="dot s1"/><title>2D · N=10k · Q=100k · k=4
-scipy KDTree, workers=-1 (original): 32.3 ms</title></g>
-<g class="pt"><circle cx="467.7" cy="145.0" r="11" class="hit"/><circle cx="467.7" cy="145.0" r="5" class="dot s2"/><title>2D · N=10k · Q=100k · k=4
-scipy KDTree, workers=1: 91.1 ms</title></g>
-<g class="pt"><circle cx="567.6" cy="145.0" r="11" class="hit"/><circle cx="567.6" cy="145.0" r="5" class="dot s3"/><title>2D · N=10k · Q=100k · k=4
-eckit Search (current): 523.8 ms</title></g>
+<line x1="474.3" x2="555.3" y1="145.0" y2="145.0" class="span"/>
+<g class="pt"><circle cx="474.3" cy="145.0" r="11" class="hit"/><circle cx="474.3" cy="145.0" r="5" class="dot s1"/><title>2D · N=10k · Q=100k · k=4
+scipy KDTree, workers=-1 (original): 32.2 ms</title></g>
+<g class="pt"><circle cx="555.3" cy="145.0" r="11" class="hit"/><circle cx="555.3" cy="145.0" r="5" class="dot s2"/><title>2D · N=10k · Q=100k · k=4
+scipy KDTree, workers=1: 93.2 ms</title></g>
+<g class="pt"><circle cx="520.2" cy="145.0" r="11" class="hit"/><circle cx="520.2" cy="145.0" r="5" class="dot s3"/><title>2D · N=10k · Q=100k · k=4
+eckit Search (current): 58.8 ms</title></g>
 <text x="198" y="175.0" class="rowlab" text-anchor="end">2D · N=10k · Q=100k · k=36</text>
-<line x1="463.0" x2="649.0" y1="171.0" y2="171.0" class="span"/>
-<g class="pt"><circle cx="463.0" cy="171.0" r="11" class="hit"/><circle cx="463.0" cy="171.0" r="5" class="dot s1"/><title>2D · N=10k · Q=100k · k=36
-scipy KDTree, workers=-1 (original): 83.9 ms</title></g>
-<g class="pt"><circle cx="550.7" cy="171.0" r="11" class="hit"/><circle cx="550.7" cy="171.0" r="5" class="dot s2"/><title>2D · N=10k · Q=100k · k=36
-scipy KDTree, workers=1: 389.9 ms</title></g>
-<g class="pt"><circle cx="649.0" cy="171.0" r="11" class="hit"/><circle cx="649.0" cy="171.0" r="5" class="dot s3"/><title>2D · N=10k · Q=100k · k=36
-eckit Search (current): 2.18 s</title></g>
+<line x1="552.0" x2="671.7" y1="171.0" y2="171.0" class="span"/>
+<g class="pt"><circle cx="552.0" cy="171.0" r="11" class="hit"/><circle cx="552.0" cy="171.0" r="5" class="dot s1"/><title>2D · N=10k · Q=100k · k=36
+scipy KDTree, workers=-1 (original): 89.3 ms</title></g>
+<g class="pt"><circle cx="671.7" cy="171.0" r="11" class="hit"/><circle cx="671.7" cy="171.0" r="5" class="dot s2"/><title>2D · N=10k · Q=100k · k=36
+scipy KDTree, workers=1: 429.9 ms</title></g>
+<g class="pt"><circle cx="598.3" cy="171.0" r="11" class="hit"/><circle cx="598.3" cy="171.0" r="5" class="dot s3"/><title>2D · N=10k · Q=100k · k=36
+eckit Search (current): 164.0 ms</title></g>
 <text x="198" y="201.0" class="rowlab" text-anchor="end">2D · N=100k · Q=1k · k=1</text>
-<line x1="398.1" x2="437.4" y1="197.0" y2="197.0" class="span"/>
-<g class="pt"><circle cx="437.4" cy="197.0" r="11" class="hit"/><circle cx="437.4" cy="197.0" r="5" class="dot s1"/><title>2D · N=100k · Q=1k · k=1
-scipy KDTree, workers=-1 (original): 53.6 ms</title></g>
-<g class="pt"><circle cx="398.1" cy="197.0" r="11" class="hit"/><circle cx="398.1" cy="197.0" r="5" class="dot s2"/><title>2D · N=100k · Q=1k · k=1
-scipy KDTree, workers=1: 26.9 ms</title></g>
-<g class="pt"><circle cx="398.8" cy="197.0" r="11" class="hit"/><circle cx="398.8" cy="197.0" r="5" class="dot s3"/><title>2D · N=100k · Q=1k · k=1
-eckit Search (current): 27.3 ms</title></g>
-<text x="198" y="227.0" class="rowlab" text-anchor="end">2D · N=100k · Q=1k · k=4</text>
-<line x1="406.4" x2="441.2" y1="223.0" y2="223.0" class="span"/>
-<g class="pt"><circle cx="441.2" cy="223.0" r="11" class="hit"/><circle cx="441.2" cy="223.0" r="5" class="dot s1"/><title>2D · N=100k · Q=1k · k=4
-scipy KDTree, workers=-1 (original): 57.3 ms</title></g>
-<g class="pt"><circle cx="406.4" cy="223.0" r="11" class="hit"/><circle cx="406.4" cy="223.0" r="5" class="dot s2"/><title>2D · N=100k · Q=1k · k=4
+<line x1="466.8" x2="519.6" y1="197.0" y2="197.0" class="span"/>
+<g class="pt"><circle cx="519.6" cy="197.0" r="11" class="hit"/><circle cx="519.6" cy="197.0" r="5" class="dot s1"/><title>2D · N=100k · Q=1k · k=1
+scipy KDTree, workers=-1 (original): 58.3 ms</title></g>
+<g class="pt"><circle cx="471.6" cy="197.0" r="11" class="hit"/><circle cx="471.6" cy="197.0" r="5" class="dot s2"/><title>2D · N=100k · Q=1k · k=1
 scipy KDTree, workers=1: 31.1 ms</title></g>
-<g class="pt"><circle cx="408.1" cy="223.0" r="11" class="hit"/><circle cx="408.1" cy="223.0" r="5" class="dot s3"/><title>2D · N=100k · Q=1k · k=4
-eckit Search (current): 32.1 ms</title></g>
+<g class="pt"><circle cx="466.8" cy="197.0" r="11" class="hit"/><circle cx="466.8" cy="197.0" r="5" class="dot s3"/><title>2D · N=100k · Q=1k · k=1
+eckit Search (current): 29.1 ms</title></g>
+<text x="198" y="227.0" class="rowlab" text-anchor="end">2D · N=100k · Q=1k · k=4</text>
+<line x1="471.6" x2="521.2" y1="223.0" y2="223.0" class="span"/>
+<g class="pt"><circle cx="521.2" cy="223.0" r="11" class="hit"/><circle cx="521.2" cy="223.0" r="5" class="dot s1"/><title>2D · N=100k · Q=1k · k=4
+scipy KDTree, workers=-1 (original): 59.5 ms</title></g>
+<g class="pt"><circle cx="471.6" cy="223.0" r="11" class="hit"/><circle cx="471.6" cy="223.0" r="5" class="dot s2"/><title>2D · N=100k · Q=1k · k=4
+scipy KDTree, workers=1: 31.0 ms</title></g>
+<g class="pt"><circle cx="504.7" cy="223.0" r="11" class="hit"/><circle cx="504.7" cy="223.0" r="5" class="dot s3"/><title>2D · N=100k · Q=1k · k=4
+eckit Search (current): 48.0 ms</title></g>
 <text x="198" y="253.0" class="rowlab" text-anchor="end">2D · N=100k · Q=1k · k=36</text>
-<line x1="411.7" x2="442.0" y1="249.0" y2="249.0" class="span"/>
-<g class="pt"><circle cx="442.0" cy="249.0" r="11" class="hit"/><circle cx="442.0" cy="249.0" r="5" class="dot s1"/><title>2D · N=100k · Q=1k · k=36
-scipy KDTree, workers=-1 (original): 58.1 ms</title></g>
-<g class="pt"><circle cx="411.7" cy="249.0" r="11" class="hit"/><circle cx="411.7" cy="249.0" r="5" class="dot s2"/><title>2D · N=100k · Q=1k · k=36
+<line x1="479.0" x2="519.8" y1="249.0" y2="249.0" class="span"/>
+<g class="pt"><circle cx="519.8" cy="249.0" r="11" class="hit"/><circle cx="519.8" cy="249.0" r="5" class="dot s1"/><title>2D · N=100k · Q=1k · k=36
+scipy KDTree, workers=-1 (original): 58.5 ms</title></g>
+<g class="pt"><circle cx="479.0" cy="249.0" r="11" class="hit"/><circle cx="479.0" cy="249.0" r="5" class="dot s2"/><title>2D · N=100k · Q=1k · k=36
 scipy KDTree, workers=1: 34.2 ms</title></g>
-<g class="pt"><circle cx="436.1" cy="249.0" r="11" class="hit"/><circle cx="436.1" cy="249.0" r="5" class="dot s3"/><title>2D · N=100k · Q=1k · k=36
-eckit Search (current): 52.4 ms</title></g>
+<g class="pt"><circle cx="507.4" cy="249.0" r="11" class="hit"/><circle cx="507.4" cy="249.0" r="5" class="dot s3"/><title>2D · N=100k · Q=1k · k=36
+eckit Search (current): 49.7 ms</title></g>
 <text x="198" y="279.0" class="rowlab" text-anchor="end">2D · N=100k · Q=100k · k=1</text>
-<line x1="439.5" x2="544.0" y1="275.0" y2="275.0" class="span"/>
-<g class="pt"><circle cx="439.5" cy="275.0" r="11" class="hit"/><circle cx="439.5" cy="275.0" r="5" class="dot s1"/><title>2D · N=100k · Q=100k · k=1
-scipy KDTree, workers=-1 (original): 55.6 ms</title></g>
-<g class="pt"><circle cx="465.7" cy="275.0" r="11" class="hit"/><circle cx="465.7" cy="275.0" r="5" class="dot s2"/><title>2D · N=100k · Q=100k · k=1
-scipy KDTree, workers=1: 88.0 ms</title></g>
-<g class="pt"><circle cx="544.0" cy="275.0" r="11" class="hit"/><circle cx="544.0" cy="275.0" r="5" class="dot s3"/><title>2D · N=100k · Q=100k · k=1
-eckit Search (current): 346.5 ms</title></g>
+<line x1="521.7" x2="564.2" y1="275.0" y2="275.0" class="span"/>
+<g class="pt"><circle cx="521.7" cy="275.0" r="11" class="hit"/><circle cx="521.7" cy="275.0" r="5" class="dot s1"/><title>2D · N=100k · Q=100k · k=1
+scipy KDTree, workers=-1 (original): 60.0 ms</title></g>
+<g class="pt"><circle cx="564.2" cy="275.0" r="11" class="hit"/><circle cx="564.2" cy="275.0" r="5" class="dot s2"/><title>2D · N=100k · Q=100k · k=1
+scipy KDTree, workers=1: 104.8 ms</title></g>
+<g class="pt"><circle cx="527.5" cy="275.0" r="11" class="hit"/><circle cx="527.5" cy="275.0" r="5" class="dot s3"/><title>2D · N=100k · Q=100k · k=1
+eckit Search (current): 64.7 ms</title></g>
 <text x="198" y="305.0" class="rowlab" text-anchor="end">2D · N=100k · Q=100k · k=4</text>
-<line x1="458.6" x2="577.1" y1="301.0" y2="301.0" class="span"/>
-<g class="pt"><circle cx="458.6" cy="301.0" r="11" class="hit"/><circle cx="458.6" cy="301.0" r="5" class="dot s1"/><title>2D · N=100k · Q=100k · k=4
-scipy KDTree, workers=-1 (original): 77.8 ms</title></g>
-<g class="pt"><circle cx="492.1" cy="301.0" r="11" class="hit"/><circle cx="492.1" cy="301.0" r="5" class="dot s2"/><title>2D · N=100k · Q=100k · k=4
-scipy KDTree, workers=1: 139.7 ms</title></g>
-<g class="pt"><circle cx="577.1" cy="301.0" r="11" class="hit"/><circle cx="577.1" cy="301.0" r="5" class="dot s3"/><title>2D · N=100k · Q=100k · k=4
-eckit Search (current): 618.9 ms</title></g>
+<line x1="525.8" x2="586.5" y1="301.0" y2="301.0" class="span"/>
+<g class="pt"><circle cx="525.8" cy="301.0" r="11" class="hit"/><circle cx="525.8" cy="301.0" r="5" class="dot s1"/><title>2D · N=100k · Q=100k · k=4
+scipy KDTree, workers=-1 (original): 63.3 ms</title></g>
+<g class="pt"><circle cx="586.5" cy="301.0" r="11" class="hit"/><circle cx="586.5" cy="301.0" r="5" class="dot s2"/><title>2D · N=100k · Q=100k · k=4
+scipy KDTree, workers=1: 140.4 ms</title></g>
+<g class="pt"><circle cx="549.9" cy="301.0" r="11" class="hit"/><circle cx="549.9" cy="301.0" r="5" class="dot s3"/><title>2D · N=100k · Q=100k · k=4
+eckit Search (current): 86.8 ms</title></g>
 <text x="198" y="331.0" class="rowlab" text-anchor="end">2D · N=100k · Q=100k · k=36</text>
-<line x1="485.3" x2="655.1" y1="327.0" y2="327.0" class="span"/>
-<g class="pt"><circle cx="485.3" cy="327.0" r="11" class="hit"/><circle cx="485.3" cy="327.0" r="5" class="dot s1"/><title>2D · N=100k · Q=100k · k=36
-scipy KDTree, workers=-1 (original): 124.0 ms</title></g>
-<g class="pt"><circle cx="566.8" cy="327.0" r="11" class="hit"/><circle cx="566.8" cy="327.0" r="5" class="dot s2"/><title>2D · N=100k · Q=100k · k=36
-scipy KDTree, workers=1: 516.9 ms</title></g>
-<g class="pt"><circle cx="655.1" cy="327.0" r="11" class="hit"/><circle cx="655.1" cy="327.0" r="5" class="dot s3"/><title>2D · N=100k · Q=100k · k=36
-eckit Search (current): 2.43 s</title></g>
+<line x1="578.0" x2="683.7" y1="327.0" y2="327.0" class="span"/>
+<g class="pt"><circle cx="578.0" cy="327.0" r="11" class="hit"/><circle cx="578.0" cy="327.0" r="5" class="dot s1"/><title>2D · N=100k · Q=100k · k=36
+scipy KDTree, workers=-1 (original): 125.5 ms</title></g>
+<g class="pt"><circle cx="683.7" cy="327.0" r="11" class="hit"/><circle cx="683.7" cy="327.0" r="5" class="dot s2"/><title>2D · N=100k · Q=100k · k=36
+scipy KDTree, workers=1: 503.2 ms</title></g>
+<g class="pt"><circle cx="607.5" cy="327.0" r="11" class="hit"/><circle cx="607.5" cy="327.0" r="5" class="dot s3"/><title>2D · N=100k · Q=100k · k=36
+eckit Search (current): 185.1 ms</title></g>
 <text x="198" y="357.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=1k · k=1</text>
-<line x1="537.8" x2="544.5" y1="353.0" y2="353.0" class="span"/>
-<g class="pt"><circle cx="544.5" cy="353.0" r="11" class="hit"/><circle cx="544.5" cy="353.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=1k · k=1
-scipy KDTree, workers=-1 (original): 349.6 ms</title></g>
-<g class="pt"><circle cx="537.8" cy="353.0" r="11" class="hit"/><circle cx="537.8" cy="353.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=1k · k=1
-scipy KDTree, workers=1: 311.3 ms</title></g>
-<g class="pt"><circle cx="542.1" cy="353.0" r="11" class="hit"/><circle cx="542.1" cy="353.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=1
-eckit Search (current): 335.1 ms</title></g>
+<line x1="654.9" x2="661.2" y1="353.0" y2="353.0" class="span"/>
+<g class="pt"><circle cx="661.2" cy="353.0" r="11" class="hit"/><circle cx="661.2" cy="353.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=1k · k=1
+scipy KDTree, workers=-1 (original): 374.5 ms</title></g>
+<g class="pt"><circle cx="655.4" cy="353.0" r="11" class="hit"/><circle cx="655.4" cy="353.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=1k · k=1
+scipy KDTree, workers=1: 347.0 ms</title></g>
+<g class="pt"><circle cx="654.9" cy="353.0" r="11" class="hit"/><circle cx="654.9" cy="353.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=1
+eckit Search (current): 344.9 ms</title></g>
 <text x="198" y="383.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=1k · k=4</text>
-<line x1="544.6" x2="548.2" y1="379.0" y2="379.0" class="span"/>
-<g class="pt"><circle cx="548.2" cy="379.0" r="11" class="hit"/><circle cx="548.2" cy="379.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=1k · k=4
-scipy KDTree, workers=-1 (original): 373.3 ms</title></g>
-<g class="pt"><circle cx="544.6" cy="379.0" r="11" class="hit"/><circle cx="544.6" cy="379.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=1k · k=4
-scipy KDTree, workers=1: 350.4 ms</title></g>
-<g class="pt"><circle cx="544.9" cy="379.0" r="11" class="hit"/><circle cx="544.9" cy="379.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=4
-eckit Search (current): 352.0 ms</title></g>
+<line x1="651.6" x2="660.8" y1="379.0" y2="379.0" class="span"/>
+<g class="pt"><circle cx="660.8" cy="379.0" r="11" class="hit"/><circle cx="660.8" cy="379.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=1k · k=4
+scipy KDTree, workers=-1 (original): 372.2 ms</title></g>
+<g class="pt"><circle cx="656.8" cy="379.0" r="11" class="hit"/><circle cx="656.8" cy="379.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=1k · k=4
+scipy KDTree, workers=1: 353.4 ms</title></g>
+<g class="pt"><circle cx="651.6" cy="379.0" r="11" class="hit"/><circle cx="651.6" cy="379.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=4
+eckit Search (current): 330.0 ms</title></g>
 <text x="198" y="409.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=1k · k=36</text>
-<line x1="545.9" x2="549.9" y1="405.0" y2="405.0" class="span"/>
-<g class="pt"><circle cx="549.9" cy="405.0" r="11" class="hit"/><circle cx="549.9" cy="405.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=1k · k=36
-scipy KDTree, workers=-1 (original): 384.3 ms</title></g>
-<g class="pt"><circle cx="546.0" cy="405.0" r="11" class="hit"/><circle cx="546.0" cy="405.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=1k · k=36
-scipy KDTree, workers=1: 359.3 ms</title></g>
-<g class="pt"><circle cx="545.9" cy="405.0" r="11" class="hit"/><circle cx="545.9" cy="405.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=36
-eckit Search (current): 358.2 ms</title></g>
+<line x1="651.3" x2="662.9" y1="405.0" y2="405.0" class="span"/>
+<g class="pt"><circle cx="662.9" cy="405.0" r="11" class="hit"/><circle cx="662.9" cy="405.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=1k · k=36
+scipy KDTree, workers=-1 (original): 382.9 ms</title></g>
+<g class="pt"><circle cx="657.2" cy="405.0" r="11" class="hit"/><circle cx="657.2" cy="405.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=1k · k=36
+scipy KDTree, workers=1: 355.2 ms</title></g>
+<g class="pt"><circle cx="651.3" cy="405.0" r="11" class="hit"/><circle cx="651.3" cy="405.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=36
+eckit Search (current): 328.7 ms</title></g>
 <text x="198" y="435.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=100k · k=1</text>
-<line x1="550.3" x2="588.2" y1="431.0" y2="431.0" class="span"/>
-<g class="pt"><circle cx="550.3" cy="431.0" r="11" class="hit"/><circle cx="550.3" cy="431.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=100k · k=1
-scipy KDTree, workers=-1 (original): 387.0 ms</title></g>
-<g class="pt"><circle cx="560.6" cy="431.0" r="11" class="hit"/><circle cx="560.6" cy="431.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=100k · k=1
-scipy KDTree, workers=1: 463.7 ms</title></g>
-<g class="pt"><circle cx="588.2" cy="431.0" r="11" class="hit"/><circle cx="588.2" cy="431.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=1
-eckit Search (current): 752.2 ms</title></g>
+<line x1="662.3" x2="677.5" y1="431.0" y2="431.0" class="span"/>
+<g class="pt"><circle cx="662.3" cy="431.0" r="11" class="hit"/><circle cx="662.3" cy="431.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=100k · k=1
+scipy KDTree, workers=-1 (original): 380.1 ms</title></g>
+<g class="pt"><circle cx="677.5" cy="431.0" r="11" class="hit"/><circle cx="677.5" cy="431.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=100k · k=1
+scipy KDTree, workers=1: 463.6 ms</title></g>
+<g class="pt"><circle cx="665.9" cy="431.0" r="11" class="hit"/><circle cx="665.9" cy="431.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=1
+eckit Search (current): 398.4 ms</title></g>
 <text x="198" y="461.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=100k · k=4</text>
-<line x1="561.7" x2="611.3" y1="457.0" y2="457.0" class="span"/>
-<g class="pt"><circle cx="561.7" cy="457.0" r="11" class="hit"/><circle cx="561.7" cy="457.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=100k · k=4
-scipy KDTree, workers=-1 (original): 472.4 ms</title></g>
-<g class="pt"><circle cx="574.2" cy="457.0" r="11" class="hit"/><circle cx="574.2" cy="457.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=100k · k=4
-scipy KDTree, workers=1: 588.2 ms</title></g>
-<g class="pt"><circle cx="611.3" cy="457.0" r="11" class="hit"/><circle cx="611.3" cy="457.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=4
-eckit Search (current): 1.13 s</title></g>
+<line x1="663.5" x2="683.2" y1="457.0" y2="457.0" class="span"/>
+<g class="pt"><circle cx="663.5" cy="457.0" r="11" class="hit"/><circle cx="663.5" cy="457.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=100k · k=4
+scipy KDTree, workers=-1 (original): 386.0 ms</title></g>
+<g class="pt"><circle cx="683.2" cy="457.0" r="11" class="hit"/><circle cx="683.2" cy="457.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=100k · k=4
+scipy KDTree, workers=1: 499.6 ms</title></g>
+<g class="pt"><circle cx="665.5" cy="457.0" r="11" class="hit"/><circle cx="665.5" cy="457.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=4
+eckit Search (current): 396.3 ms</title></g>
 <text x="198" y="487.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=100k · k=36</text>
-<line x1="558.7" x2="667.4" y1="483.0" y2="483.0" class="span"/>
-<g class="pt"><circle cx="558.7" cy="483.0" r="11" class="hit"/><circle cx="558.7" cy="483.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=100k · k=36
-scipy KDTree, workers=-1 (original): 448.8 ms</title></g>
-<g class="pt"><circle cx="599.7" cy="483.0" r="11" class="hit"/><circle cx="599.7" cy="483.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=100k · k=36
-scipy KDTree, workers=1: 919.4 ms</title></g>
-<g class="pt"><circle cx="667.4" cy="483.0" r="11" class="hit"/><circle cx="667.4" cy="483.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=36
-eckit Search (current): 3.01 s</title></g>
+<line x1="676.1" x2="727.3" y1="483.0" y2="483.0" class="span"/>
+<g class="pt"><circle cx="676.1" cy="483.0" r="11" class="hit"/><circle cx="676.1" cy="483.0" r="5" class="dot s1"/><title>2D · N=1.1M · Q=100k · k=36
+scipy KDTree, workers=-1 (original): 455.3 ms</title></g>
+<g class="pt"><circle cx="727.3" cy="483.0" r="11" class="hit"/><circle cx="727.3" cy="483.0" r="5" class="dot s2"/><title>2D · N=1.1M · Q=100k · k=36
+scipy KDTree, workers=1: 891.7 ms</title></g>
+<g class="pt"><circle cx="681.5" cy="483.0" r="11" class="hit"/><circle cx="681.5" cy="483.0" r="5" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=36
+eckit Search (current): 489.0 ms</title></g>
 </svg></div></div>
   <div class="figure"><h3 id="c2t">3D coordinates (temp, nearest_3D, idw_3D, upscaled_3D)</h3><div class="scroll"><svg viewBox="0 0 760 370" role="img" aria-labelledby="c2t" class="chart">
 <line x1="210.0" x2="210.0" y1="20" y2="344" class="grid"/>
-<text x="210.0" y="360" class="tick" text-anchor="middle">10.0 ms</text>
+<text x="210.0" y="360" class="tick" text-anchor="middle">1.0 ms</text>
 <line x1="341.5" x2="341.5" y1="20" y2="344" class="grid"/>
-<text x="341.5" y="360" class="tick" text-anchor="middle">100.0 ms</text>
+<text x="341.5" y="360" class="tick" text-anchor="middle">10.0 ms</text>
 <line x1="473.0" x2="473.0" y1="20" y2="344" class="grid"/>
-<text x="473.0" y="360" class="tick" text-anchor="middle">1.00 s</text>
+<text x="473.0" y="360" class="tick" text-anchor="middle">100.0 ms</text>
 <line x1="604.5" x2="604.5" y1="20" y2="344" class="grid"/>
-<text x="604.5" y="360" class="tick" text-anchor="middle">10.00 s</text>
+<text x="604.5" y="360" class="tick" text-anchor="middle">1.00 s</text>
 <line x1="736.0" x2="736.0" y1="20" y2="344" class="grid"/>
-<text x="736.0" y="360" class="tick" text-anchor="middle">100.00 s</text>
+<text x="736.0" y="360" class="tick" text-anchor="middle">10.00 s</text>
 <text x="198" y="45.0" class="rowlab" text-anchor="end">3D · N=10k · Q=1k · k=1</text>
-<line x1="227.0" x2="275.8" y1="41.0" y2="41.0" class="span"/>
-<g class="pt"><circle cx="275.8" cy="41.0" r="11" class="hit"/><circle cx="275.8" cy="41.0" r="5" class="dot s1"/><title>3D · N=10k · Q=1k · k=1
-scipy KDTree, workers=-1 (original): 31.6 ms</title></g>
-<g class="pt"><circle cx="227.0" cy="41.0" r="11" class="hit"/><circle cx="227.0" cy="41.0" r="5" class="dot s2"/><title>3D · N=10k · Q=1k · k=1
-scipy KDTree, workers=1: 13.5 ms</title></g>
-<g class="pt"><circle cx="236.5" cy="41.0" r="11" class="hit"/><circle cx="236.5" cy="41.0" r="5" class="dot s3"/><title>3D · N=10k · Q=1k · k=1
-eckit Search (current): 15.9 ms</title></g>
+<line x1="300.3" x2="405.7" y1="41.0" y2="41.0" class="span"/>
+<g class="pt"><circle cx="405.7" cy="41.0" r="11" class="hit"/><circle cx="405.7" cy="41.0" r="5" class="dot s1"/><title>3D · N=10k · Q=1k · k=1
+scipy KDTree, workers=-1 (original): 30.8 ms</title></g>
+<g class="pt"><circle cx="358.0" cy="41.0" r="11" class="hit"/><circle cx="358.0" cy="41.0" r="5" class="dot s2"/><title>3D · N=10k · Q=1k · k=1
+scipy KDTree, workers=1: 13.4 ms</title></g>
+<g class="pt"><circle cx="300.3" cy="41.0" r="11" class="hit"/><circle cx="300.3" cy="41.0" r="5" class="dot s3"/><title>3D · N=10k · Q=1k · k=1
+eckit Search (current): 4.9 ms</title></g>
 <text x="198" y="71.0" class="rowlab" text-anchor="end">3D · N=10k · Q=1k · k=36</text>
-<line x1="257.0" x2="311.9" y1="67.0" y2="67.0" class="span"/>
-<g class="pt"><circle cx="278.8" cy="67.0" r="11" class="hit"/><circle cx="278.8" cy="67.0" r="5" class="dot s1"/><title>3D · N=10k · Q=1k · k=36
-scipy KDTree, workers=-1 (original): 33.4 ms</title></g>
-<g class="pt"><circle cx="257.0" cy="67.0" r="11" class="hit"/><circle cx="257.0" cy="67.0" r="5" class="dot s2"/><title>3D · N=10k · Q=1k · k=36
-scipy KDTree, workers=1: 22.8 ms</title></g>
-<g class="pt"><circle cx="311.9" cy="67.0" r="11" class="hit"/><circle cx="311.9" cy="67.0" r="5" class="dot s3"/><title>3D · N=10k · Q=1k · k=36
-eckit Search (current): 59.5 ms</title></g>
+<line x1="320.5" x2="406.6" y1="67.0" y2="67.0" class="span"/>
+<g class="pt"><circle cx="406.6" cy="67.0" r="11" class="hit"/><circle cx="406.6" cy="67.0" r="5" class="dot s1"/><title>3D · N=10k · Q=1k · k=36
+scipy KDTree, workers=-1 (original): 31.3 ms</title></g>
+<g class="pt"><circle cx="388.1" cy="67.0" r="11" class="hit"/><circle cx="388.1" cy="67.0" r="5" class="dot s2"/><title>3D · N=10k · Q=1k · k=36
+scipy KDTree, workers=1: 22.6 ms</title></g>
+<g class="pt"><circle cx="320.5" cy="67.0" r="11" class="hit"/><circle cx="320.5" cy="67.0" r="5" class="dot s3"/><title>3D · N=10k · Q=1k · k=36
+eckit Search (current): 6.9 ms</title></g>
 <text x="198" y="97.0" class="rowlab" text-anchor="end">3D · N=10k · Q=100k · k=1</text>
-<line x1="372.0" x2="489.7" y1="93.0" y2="93.0" class="span"/>
-<g class="pt"><circle cx="372.0" cy="93.0" r="11" class="hit"/><circle cx="372.0" cy="93.0" r="5" class="dot s1"/><title>3D · N=10k · Q=100k · k=1
-scipy KDTree, workers=-1 (original): 170.5 ms</title></g>
-<g class="pt"><circle cx="479.5" cy="93.0" r="11" class="hit"/><circle cx="479.5" cy="93.0" r="5" class="dot s2"/><title>3D · N=10k · Q=100k · k=1
+<line x1="502.2" x2="610.9" y1="93.0" y2="93.0" class="span"/>
+<g class="pt"><circle cx="502.2" cy="93.0" r="11" class="hit"/><circle cx="502.2" cy="93.0" r="5" class="dot s1"/><title>3D · N=10k · Q=100k · k=1
+scipy KDTree, workers=-1 (original): 166.6 ms</title></g>
+<g class="pt"><circle cx="610.9" cy="93.0" r="11" class="hit"/><circle cx="610.9" cy="93.0" r="5" class="dot s2"/><title>3D · N=10k · Q=100k · k=1
 scipy KDTree, workers=1: 1.12 s</title></g>
-<g class="pt"><circle cx="489.7" cy="93.0" r="11" class="hit"/><circle cx="489.7" cy="93.0" r="5" class="dot s3"/><title>3D · N=10k · Q=100k · k=1
-eckit Search (current): 1.34 s</title></g>
+<g class="pt"><circle cx="515.9" cy="93.0" r="11" class="hit"/><circle cx="515.9" cy="93.0" r="5" class="dot s3"/><title>3D · N=10k · Q=100k · k=1
+eckit Search (current): 211.9 ms</title></g>
 <text x="198" y="123.0" class="rowlab" text-anchor="end">3D · N=10k · Q=100k · k=36</text>
-<line x1="401.5" x2="569.8" y1="119.0" y2="119.0" class="span"/>
-<g class="pt"><circle cx="401.5" cy="119.0" r="11" class="hit"/><circle cx="401.5" cy="119.0" r="5" class="dot s1"/><title>3D · N=10k · Q=100k · k=36
-scipy KDTree, workers=-1 (original): 286.1 ms</title></g>
-<g class="pt"><circle cx="509.4" cy="119.0" r="11" class="hit"/><circle cx="509.4" cy="119.0" r="5" class="dot s2"/><title>3D · N=10k · Q=100k · k=36
-scipy KDTree, workers=1: 1.89 s</title></g>
-<g class="pt"><circle cx="569.8" cy="119.0" r="11" class="hit"/><circle cx="569.8" cy="119.0" r="5" class="dot s3"/><title>3D · N=10k · Q=100k · k=36
-eckit Search (current): 5.45 s</title></g>
+<line x1="529.7" x2="641.8" y1="119.0" y2="119.0" class="span"/>
+<g class="pt"><circle cx="529.7" cy="119.0" r="11" class="hit"/><circle cx="529.7" cy="119.0" r="5" class="dot s1"/><title>3D · N=10k · Q=100k · k=36
+scipy KDTree, workers=-1 (original): 270.0 ms</title></g>
+<g class="pt"><circle cx="641.8" cy="119.0" r="11" class="hit"/><circle cx="641.8" cy="119.0" r="5" class="dot s2"/><title>3D · N=10k · Q=100k · k=36
+scipy KDTree, workers=1: 1.92 s</title></g>
+<g class="pt"><circle cx="547.8" cy="119.0" r="11" class="hit"/><circle cx="547.8" cy="119.0" r="5" class="dot s3"/><title>3D · N=10k · Q=100k · k=36
+eckit Search (current): 370.3 ms</title></g>
 <text x="198" y="149.0" class="rowlab" text-anchor="end">3D · N=100k · Q=1k · k=1</text>
-<line x1="298.1" x2="314.7" y1="145.0" y2="145.0" class="span"/>
-<g class="pt"><circle cx="314.7" cy="145.0" r="11" class="hit"/><circle cx="314.7" cy="145.0" r="5" class="dot s1"/><title>3D · N=100k · Q=1k · k=1
-scipy KDTree, workers=-1 (original): 62.5 ms</title></g>
-<g class="pt"><circle cx="302.0" cy="145.0" r="11" class="hit"/><circle cx="302.0" cy="145.0" r="5" class="dot s2"/><title>3D · N=100k · Q=1k · k=1
-scipy KDTree, workers=1: 50.1 ms</title></g>
-<g class="pt"><circle cx="298.1" cy="145.0" r="11" class="hit"/><circle cx="298.1" cy="145.0" r="5" class="dot s3"/><title>3D · N=100k · Q=1k · k=1
-eckit Search (current): 46.7 ms</title></g>
+<line x1="406.1" x2="443.2" y1="145.0" y2="145.0" class="span"/>
+<g class="pt"><circle cx="443.2" cy="145.0" r="11" class="hit"/><circle cx="443.2" cy="145.0" r="5" class="dot s1"/><title>3D · N=100k · Q=1k · k=1
+scipy KDTree, workers=-1 (original): 59.3 ms</title></g>
+<g class="pt"><circle cx="433.0" cy="145.0" r="11" class="hit"/><circle cx="433.0" cy="145.0" r="5" class="dot s2"/><title>3D · N=100k · Q=1k · k=1
+scipy KDTree, workers=1: 49.6 ms</title></g>
+<g class="pt"><circle cx="406.1" cy="145.0" r="11" class="hit"/><circle cx="406.1" cy="145.0" r="5" class="dot s3"/><title>3D · N=100k · Q=1k · k=1
+eckit Search (current): 31.0 ms</title></g>
 <text x="198" y="175.0" class="rowlab" text-anchor="end">3D · N=100k · Q=1k · k=36</text>
-<line x1="309.2" x2="335.1" y1="171.0" y2="171.0" class="span"/>
-<g class="pt"><circle cx="312.0" cy="171.0" r="11" class="hit"/><circle cx="312.0" cy="171.0" r="5" class="dot s1"/><title>3D · N=100k · Q=1k · k=36
-scipy KDTree, workers=-1 (original): 59.7 ms</title></g>
-<g class="pt"><circle cx="309.2" cy="171.0" r="11" class="hit"/><circle cx="309.2" cy="171.0" r="5" class="dot s2"/><title>3D · N=100k · Q=1k · k=36
-scipy KDTree, workers=1: 56.8 ms</title></g>
-<g class="pt"><circle cx="335.1" cy="171.0" r="11" class="hit"/><circle cx="335.1" cy="171.0" r="5" class="dot s3"/><title>3D · N=100k · Q=1k · k=36
-eckit Search (current): 89.4 ms</title></g>
+<line x1="408.9" x2="443.7" y1="171.0" y2="171.0" class="span"/>
+<g class="pt"><circle cx="443.7" cy="171.0" r="11" class="hit"/><circle cx="443.7" cy="171.0" r="5" class="dot s1"/><title>3D · N=100k · Q=1k · k=36
+scipy KDTree, workers=-1 (original): 59.8 ms</title></g>
+<g class="pt"><circle cx="443.4" cy="171.0" r="11" class="hit"/><circle cx="443.4" cy="171.0" r="5" class="dot s2"/><title>3D · N=100k · Q=1k · k=36
+scipy KDTree, workers=1: 59.5 ms</title></g>
+<g class="pt"><circle cx="408.9" cy="171.0" r="11" class="hit"/><circle cx="408.9" cy="171.0" r="5" class="dot s3"/><title>3D · N=100k · Q=1k · k=36
+eckit Search (current): 32.6 ms</title></g>
 <text x="198" y="201.0" class="rowlab" text-anchor="end">3D · N=100k · Q=100k · k=1</text>
-<line x1="411.1" x2="510.7" y1="197.0" y2="197.0" class="span"/>
-<g class="pt"><circle cx="411.1" cy="197.0" r="11" class="hit"/><circle cx="411.1" cy="197.0" r="5" class="dot s1"/><title>3D · N=100k · Q=100k · k=1
-scipy KDTree, workers=-1 (original): 338.1 ms</title></g>
-<g class="pt"><circle cx="510.7" cy="197.0" r="11" class="hit"/><circle cx="510.7" cy="197.0" r="5" class="dot s2"/><title>3D · N=100k · Q=100k · k=1
-scipy KDTree, workers=1: 1.93 s</title></g>
-<g class="pt"><circle cx="509.0" cy="197.0" r="11" class="hit"/><circle cx="509.0" cy="197.0" r="5" class="dot s3"/><title>3D · N=100k · Q=100k · k=1
-eckit Search (current): 1.88 s</title></g>
+<line x1="514.1" x2="645.5" y1="197.0" y2="197.0" class="span"/>
+<g class="pt"><circle cx="540.5" cy="197.0" r="11" class="hit"/><circle cx="540.5" cy="197.0" r="5" class="dot s1"/><title>3D · N=100k · Q=100k · k=1
+scipy KDTree, workers=-1 (original): 326.1 ms</title></g>
+<g class="pt"><circle cx="645.5" cy="197.0" r="11" class="hit"/><circle cx="645.5" cy="197.0" r="5" class="dot s2"/><title>3D · N=100k · Q=100k · k=1
+scipy KDTree, workers=1: 2.05 s</title></g>
+<g class="pt"><circle cx="514.1" cy="197.0" r="11" class="hit"/><circle cx="514.1" cy="197.0" r="5" class="dot s3"/><title>3D · N=100k · Q=100k · k=1
+eckit Search (current): 205.5 ms</title></g>
 <text x="198" y="227.0" class="rowlab" text-anchor="end">3D · N=100k · Q=100k · k=36</text>
-<line x1="426.6" x2="583.9" y1="223.0" y2="223.0" class="span"/>
-<g class="pt"><circle cx="426.6" cy="223.0" r="11" class="hit"/><circle cx="426.6" cy="223.0" r="5" class="dot s1"/><title>3D · N=100k · Q=100k · k=36
-scipy KDTree, workers=-1 (original): 443.6 ms</title></g>
-<g class="pt"><circle cx="534.5" cy="223.0" r="11" class="hit"/><circle cx="534.5" cy="223.0" r="5" class="dot s2"/><title>3D · N=100k · Q=100k · k=36
-scipy KDTree, workers=1: 2.94 s</title></g>
-<g class="pt"><circle cx="583.9" cy="223.0" r="11" class="hit"/><circle cx="583.9" cy="223.0" r="5" class="dot s3"/><title>3D · N=100k · Q=100k · k=36
-eckit Search (current): 6.97 s</title></g>
+<line x1="551.4" x2="667.7" y1="223.0" y2="223.0" class="span"/>
+<g class="pt"><circle cx="557.8" cy="223.0" r="11" class="hit"/><circle cx="557.8" cy="223.0" r="5" class="dot s1"/><title>3D · N=100k · Q=100k · k=36
+scipy KDTree, workers=-1 (original): 441.4 ms</title></g>
+<g class="pt"><circle cx="667.7" cy="223.0" r="11" class="hit"/><circle cx="667.7" cy="223.0" r="5" class="dot s2"/><title>3D · N=100k · Q=100k · k=36
+scipy KDTree, workers=1: 3.03 s</title></g>
+<g class="pt"><circle cx="551.4" cy="223.0" r="11" class="hit"/><circle cx="551.4" cy="223.0" r="5" class="dot s3"/><title>3D · N=100k · Q=100k · k=36
+eckit Search (current): 394.4 ms</title></g>
 <text x="198" y="253.0" class="rowlab" text-anchor="end">3D · N=1.1M · Q=1k · k=1</text>
-<line x1="410.0" x2="418.5" y1="249.0" y2="249.0" class="span"/>
-<g class="pt"><circle cx="417.6" cy="249.0" r="11" class="hit"/><circle cx="417.6" cy="249.0" r="5" class="dot s1"/><title>3D · N=1.1M · Q=1k · k=1
-scipy KDTree, workers=-1 (original): 378.8 ms</title></g>
-<g class="pt"><circle cx="410.0" cy="249.0" r="11" class="hit"/><circle cx="410.0" cy="249.0" r="5" class="dot s2"/><title>3D · N=1.1M · Q=1k · k=1
-scipy KDTree, workers=1: 331.6 ms</title></g>
-<g class="pt"><circle cx="418.5" cy="249.0" r="11" class="hit"/><circle cx="418.5" cy="249.0" r="5" class="dot s3"/><title>3D · N=1.1M · Q=1k · k=1
-eckit Search (current): 384.8 ms</title></g>
+<line x1="542.6" x2="550.2" y1="249.0" y2="249.0" class="span"/>
+<g class="pt"><circle cx="550.2" cy="249.0" r="11" class="hit"/><circle cx="550.2" cy="249.0" r="5" class="dot s1"/><title>3D · N=1.1M · Q=1k · k=1
+scipy KDTree, workers=-1 (original): 386.3 ms</title></g>
+<g class="pt"><circle cx="547.7" cy="249.0" r="11" class="hit"/><circle cx="547.7" cy="249.0" r="5" class="dot s2"/><title>3D · N=1.1M · Q=1k · k=1
+scipy KDTree, workers=1: 369.8 ms</title></g>
+<g class="pt"><circle cx="542.6" cy="249.0" r="11" class="hit"/><circle cx="542.6" cy="249.0" r="5" class="dot s3"/><title>3D · N=1.1M · Q=1k · k=1
+eckit Search (current): 338.1 ms</title></g>
 <text x="198" y="279.0" class="rowlab" text-anchor="end">3D · N=1.1M · Q=1k · k=36</text>
-<line x1="411.5" x2="420.5" y1="275.0" y2="275.0" class="span"/>
-<g class="pt"><circle cx="411.5" cy="275.0" r="11" class="hit"/><circle cx="411.5" cy="275.0" r="5" class="dot s1"/><title>3D · N=1.1M · Q=1k · k=36
-scipy KDTree, workers=-1 (original): 340.7 ms</title></g>
-<g class="pt"><circle cx="413.6" cy="275.0" r="11" class="hit"/><circle cx="413.6" cy="275.0" r="5" class="dot s2"/><title>3D · N=1.1M · Q=1k · k=36
-scipy KDTree, workers=1: 353.4 ms</title></g>
-<g class="pt"><circle cx="420.5" cy="275.0" r="11" class="hit"/><circle cx="420.5" cy="275.0" r="5" class="dot s3"/><title>3D · N=1.1M · Q=1k · k=36
-eckit Search (current): 398.5 ms</title></g>
+<line x1="545.0" x2="550.6" y1="275.0" y2="275.0" class="span"/>
+<g class="pt"><circle cx="549.7" cy="275.0" r="11" class="hit"/><circle cx="549.7" cy="275.0" r="5" class="dot s1"/><title>3D · N=1.1M · Q=1k · k=36
+scipy KDTree, workers=-1 (original): 383.0 ms</title></g>
+<g class="pt"><circle cx="550.6" cy="275.0" r="11" class="hit"/><circle cx="550.6" cy="275.0" r="5" class="dot s2"/><title>3D · N=1.1M · Q=1k · k=36
+scipy KDTree, workers=1: 388.9 ms</title></g>
+<g class="pt"><circle cx="545.0" cy="275.0" r="11" class="hit"/><circle cx="545.0" cy="275.0" r="5" class="dot s3"/><title>3D · N=1.1M · Q=1k · k=36
+eckit Search (current): 352.9 ms</title></g>
 <text x="198" y="305.0" class="rowlab" text-anchor="end">3D · N=1.1M · Q=100k · k=1</text>
-<line x1="458.9" x2="562.6" y1="301.0" y2="301.0" class="span"/>
-<g class="pt"><circle cx="458.9" cy="301.0" r="11" class="hit"/><circle cx="458.9" cy="301.0" r="5" class="dot s1"/><title>3D · N=1.1M · Q=100k · k=1
-scipy KDTree, workers=-1 (original): 781.4 ms</title></g>
-<g class="pt"><circle cx="540.2" cy="301.0" r="11" class="hit"/><circle cx="540.2" cy="301.0" r="5" class="dot s2"/><title>3D · N=1.1M · Q=100k · k=1
-scipy KDTree, workers=1: 3.25 s</title></g>
-<g class="pt"><circle cx="562.6" cy="301.0" r="11" class="hit"/><circle cx="562.6" cy="301.0" r="5" class="dot s3"/><title>3D · N=1.1M · Q=100k · k=1
-eckit Search (current): 4.80 s</title></g>
+<line x1="579.9" x2="668.9" y1="301.0" y2="301.0" class="span"/>
+<g class="pt"><circle cx="588.7" cy="301.0" r="11" class="hit"/><circle cx="588.7" cy="301.0" r="5" class="dot s1"/><title>3D · N=1.1M · Q=100k · k=1
+scipy KDTree, workers=-1 (original): 758.0 ms</title></g>
+<g class="pt"><circle cx="668.9" cy="301.0" r="11" class="hit"/><circle cx="668.9" cy="301.0" r="5" class="dot s2"/><title>3D · N=1.1M · Q=100k · k=1
+scipy KDTree, workers=1: 3.09 s</title></g>
+<g class="pt"><circle cx="579.9" cy="301.0" r="11" class="hit"/><circle cx="579.9" cy="301.0" r="5" class="dot s3"/><title>3D · N=1.1M · Q=100k · k=1
+eckit Search (current): 649.5 ms</title></g>
 <text x="198" y="331.0" class="rowlab" text-anchor="end">3D · N=1.1M · Q=100k · k=36</text>
-<line x1="466.1" x2="619.1" y1="327.0" y2="327.0" class="span"/>
-<g class="pt"><circle cx="466.1" cy="327.0" r="11" class="hit"/><circle cx="466.1" cy="327.0" r="5" class="dot s1"/><title>3D · N=1.1M · Q=100k · k=36
-scipy KDTree, workers=-1 (original): 886.7 ms</title></g>
-<g class="pt"><circle cx="551.4" cy="327.0" r="11" class="hit"/><circle cx="551.4" cy="327.0" r="5" class="dot s2"/><title>3D · N=1.1M · Q=100k · k=36
-scipy KDTree, workers=1: 3.95 s</title></g>
-<g class="pt"><circle cx="619.1" cy="327.0" r="11" class="hit"/><circle cx="619.1" cy="327.0" r="5" class="dot s3"/><title>3D · N=1.1M · Q=100k · k=36
-eckit Search (current): 12.91 s</title></g>
+<line x1="598.1" x2="685.5" y1="327.0" y2="327.0" class="span"/>
+<g class="pt"><circle cx="598.1" cy="327.0" r="11" class="hit"/><circle cx="598.1" cy="327.0" r="5" class="dot s1"/><title>3D · N=1.1M · Q=100k · k=36
+scipy KDTree, workers=-1 (original): 894.2 ms</title></g>
+<g class="pt"><circle cx="685.5" cy="327.0" r="11" class="hit"/><circle cx="685.5" cy="327.0" r="5" class="dot s2"/><title>3D · N=1.1M · Q=100k · k=36
+scipy KDTree, workers=1: 4.13 s</title></g>
+<g class="pt"><circle cx="599.1" cy="327.0" r="11" class="hit"/><circle cx="599.1" cy="327.0" r="5" class="dot s3"/><title>3D · N=1.1M · Q=100k · k=36
+eckit Search (current): 909.9 ms</title></g>
 </svg></div></div>
 </section>
 
 <section>
   <h2>Where the time goes at N = 1.1M</h2>
-  <p>Single-threaded scipy vs eckit, split into tree build (light) and queries (solid).</p>
-  <div class="legend"><span class="key"><i class="sw sq light s2"></i><i class="sw sq s2"></i>scipy, 1 thread: build · queries</span>
-  <span class="key"><i class="sw sq light s3"></i><i class="sw sq s3"></i>eckit: build · queries</span></div>
+  <p>scipy (<code>workers=-1</code>) vs eckit, split into tree build (light) and queries (solid). Both builds are single-threaded.</p>
+  <div class="legend"><span class="key"><i class="sw sq light s1"></i><i class="sw sq s1"></i>scipy, 8 threads: build · queries</span>
+  <span class="key"><i class="sw sq light s3"></i><i class="sw sq s3"></i>eckit, 8 threads: build · queries</span></div>
   <div class="figure"><h3 id="c3t">2D, k = 1 and 36</h3><div class="scroll"><svg viewBox="0 0 760 324" role="img" aria-labelledby="c3t" class="chart">
 <line x1="210.0" x2="210.0" y1="12" y2="296" class="grid"/>
 <text x="210.0" y="314" class="tick" text-anchor="middle">0 s</text>
-<line x1="330.0" x2="330.0" y1="12" y2="296" class="grid"/>
-<text x="330.0" y="314" class="tick" text-anchor="middle">1 s</text>
-<line x1="450.0" x2="450.0" y1="12" y2="296" class="grid"/>
-<text x="450.0" y="314" class="tick" text-anchor="middle">2 s</text>
-<line x1="570.0" x2="570.0" y1="12" y2="296" class="grid"/>
-<text x="570.0" y="314" class="tick" text-anchor="middle">3 s</text>
+<line x1="306.0" x2="306.0" y1="12" y2="296" class="grid"/>
+<text x="306.0" y="314" class="tick" text-anchor="middle">0.1 s</text>
+<line x1="402.0" x2="402.0" y1="12" y2="296" class="grid"/>
+<text x="402.0" y="314" class="tick" text-anchor="middle">0.2 s</text>
+<line x1="498.0" x2="498.0" y1="12" y2="296" class="grid"/>
+<text x="498.0" y="314" class="tick" text-anchor="middle">0.3 s</text>
+<line x1="594.0" x2="594.0" y1="12" y2="296" class="grid"/>
+<text x="594.0" y="314" class="tick" text-anchor="middle">0.4 s</text>
 <line x1="690.0" x2="690.0" y1="12" y2="296" class="grid"/>
-<text x="690.0" y="314" class="tick" text-anchor="middle">4 s</text>
+<text x="690.0" y="314" class="tick" text-anchor="middle">0.5 s</text>
 <text x="198" y="31.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=1k · k=1</text>
-<g class="pt"><rect x="210" y="18" width="35.7" height="18" class="build s2"/><title>2D · N=1.1M · Q=1k · k=1, scipy, 1 thread: build 306.2 ms</title></g>
-<g class="pt"><rect x="247.7" y="18" width="0.5" height="18" rx="3" class="dot s2"/><title>2D · N=1.1M · Q=1k · k=1, scipy, 1 thread: queries 5.1 ms</title></g>
-<text x="253.4" y="31.0" class="vlab">scipy, 1 thread · 311.3 ms</text>
-<g class="pt"><rect x="210" y="52" width="39.9" height="18" class="build s3"/><title>2D · N=1.1M · Q=1k · k=1, eckit: build 340.7 ms</title></g>
-<g class="pt"><rect x="251.9" y="52" width="0.5" height="18" rx="3" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=1, eckit: queries 0 µs</title></g>
-<text x="256.9" y="65.0" class="vlab">eckit · 340.7 ms</text>
+<g class="pt"><rect x="210" y="18" width="307.2" height="18" class="build s1"/><title>2D · N=1.1M · Q=1k · k=1, scipy, 8 threads: build 321.0 ms</title></g>
+<g class="pt"><rect x="519.2" y="18" width="50.3" height="18" rx="3" class="dot s1"/><title>2D · N=1.1M · Q=1k · k=1, scipy, 8 threads: queries 53.5 ms</title></g>
+<text x="575.5" y="31.0" class="vlab">scipy, 8 threads · 374.5 ms</text>
+<g class="pt"><rect x="210" y="52" width="296.9" height="18" class="build s3"/><title>2D · N=1.1M · Q=1k · k=1, eckit, 8 threads: build 310.3 ms</title></g>
+<g class="pt"><rect x="508.9" y="52" width="32.2" height="18" rx="3" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=1, eckit, 8 threads: queries 34.6 ms</title></g>
+<text x="547.1" y="65.0" class="vlab">eckit, 8 threads · 344.9 ms</text>
 <text x="198" y="99.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=1k · k=36</text>
-<g class="pt"><rect x="210" y="86" width="42.0" height="18" class="build s2"/><title>2D · N=1.1M · Q=1k · k=36, scipy, 1 thread: build 358.1 ms</title></g>
-<g class="pt"><rect x="254.0" y="86" width="0.5" height="18" rx="3" class="dot s2"/><title>2D · N=1.1M · Q=1k · k=36, scipy, 1 thread: queries 1.2 ms</title></g>
-<text x="259.1" y="99.0" class="vlab">scipy, 1 thread · 359.3 ms</text>
-<g class="pt"><rect x="210" y="120" width="38.2" height="18" class="build s3"/><title>2D · N=1.1M · Q=1k · k=36, eckit: build 326.8 ms</title></g>
-<g class="pt"><rect x="250.2" y="120" width="2.8" height="18" rx="3" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=36, eckit: queries 31.4 ms</title></g>
-<text x="259.0" y="133.0" class="vlab">eckit · 358.2 ms</text>
+<g class="pt"><rect x="210" y="86" width="337.1" height="18" class="build s1"/><title>2D · N=1.1M · Q=1k · k=36, scipy, 8 threads: build 352.2 ms</title></g>
+<g class="pt"><rect x="549.1" y="86" width="28.5" height="18" rx="3" class="dot s1"/><title>2D · N=1.1M · Q=1k · k=36, scipy, 8 threads: queries 30.7 ms</title></g>
+<text x="583.6" y="99.0" class="vlab">scipy, 8 threads · 382.9 ms</text>
+<g class="pt"><rect x="210" y="120" width="301.4" height="18" class="build s3"/><title>2D · N=1.1M · Q=1k · k=36, eckit, 8 threads: build 315.0 ms</title></g>
+<g class="pt"><rect x="513.4" y="120" width="12.2" height="18" rx="3" class="dot s3"/><title>2D · N=1.1M · Q=1k · k=36, eckit, 8 threads: queries 13.8 ms</title></g>
+<text x="531.6" y="133.0" class="vlab">eckit, 8 threads · 328.7 ms</text>
 <text x="198" y="167.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=100k · k=1</text>
-<g class="pt"><rect x="210" y="154" width="41.0" height="18" class="build s2"/><title>2D · N=1.1M · Q=100k · k=1, scipy, 1 thread: build 349.8 ms</title></g>
-<g class="pt"><rect x="253.0" y="154" width="12.7" height="18" rx="3" class="dot s2"/><title>2D · N=1.1M · Q=100k · k=1, scipy, 1 thread: queries 113.8 ms</title></g>
-<text x="271.6" y="167.0" class="vlab">scipy, 1 thread · 463.7 ms</text>
-<g class="pt"><rect x="210" y="188" width="38.0" height="18" class="build s3"/><title>2D · N=1.1M · Q=100k · k=1, eckit: build 325.0 ms</title></g>
-<g class="pt"><rect x="250.0" y="188" width="50.3" height="18" rx="3" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=1, eckit: queries 427.3 ms</title></g>
-<text x="306.3" y="201.0" class="vlab">eckit · 752.2 ms</text>
+<g class="pt"><rect x="210" y="154" width="330.8" height="18" class="build s1"/><title>2D · N=1.1M · Q=100k · k=1, scipy, 8 threads: build 345.7 ms</title></g>
+<g class="pt"><rect x="542.8" y="154" width="32.1" height="18" rx="3" class="dot s1"/><title>2D · N=1.1M · Q=100k · k=1, scipy, 8 threads: queries 34.5 ms</title></g>
+<text x="580.9" y="167.0" class="vlab">scipy, 8 threads · 380.1 ms</text>
+<g class="pt"><rect x="210" y="188" width="301.6" height="18" class="build s3"/><title>2D · N=1.1M · Q=100k · k=1, eckit, 8 threads: build 315.2 ms</title></g>
+<g class="pt"><rect x="513.6" y="188" width="78.9" height="18" rx="3" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=1, eckit, 8 threads: queries 83.2 ms</title></g>
+<text x="598.5" y="201.0" class="vlab">eckit, 8 threads · 398.4 ms</text>
 <text x="198" y="235.0" class="rowlab" text-anchor="end">2D · N=1.1M · Q=100k · k=36</text>
-<g class="pt"><rect x="210" y="222" width="40.9" height="18" class="build s2"/><title>2D · N=1.1M · Q=100k · k=36, scipy, 1 thread: build 348.9 ms</title></g>
-<g class="pt"><rect x="252.9" y="222" width="67.5" height="18" rx="3" class="dot s2"/><title>2D · N=1.1M · Q=100k · k=36, scipy, 1 thread: queries 570.5 ms</title></g>
-<text x="326.3" y="235.0" class="vlab">scipy, 1 thread · 919.4 ms</text>
-<g class="pt"><rect x="210" y="256" width="37.1" height="18" class="build s3"/><title>2D · N=1.1M · Q=100k · k=36, eckit: build 317.5 ms</title></g>
-<g class="pt"><rect x="249.1" y="256" width="322.2" height="18" rx="3" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=36, eckit: queries 2.69 s</title></g>
-<text x="577.3" y="269.0" class="vlab">eckit · 3.01 s</text>
+<g class="pt"><rect x="210" y="222" width="339.3" height="18" class="build s1"/><title>2D · N=1.1M · Q=100k · k=36, scipy, 8 threads: build 354.4 ms</title></g>
+<g class="pt"><rect x="551.3" y="222" width="95.8" height="18" rx="3" class="dot s1"/><title>2D · N=1.1M · Q=100k · k=36, scipy, 8 threads: queries 100.8 ms</title></g>
+<text x="653.1" y="235.0" class="vlab">scipy, 8 threads · 455.3 ms</text>
+<g class="pt"><rect x="210" y="256" width="319.6" height="18" class="build s3"/><title>2D · N=1.1M · Q=100k · k=36, eckit, 8 threads: build 334.0 ms</title></g>
+<g class="pt"><rect x="531.6" y="256" width="147.8" height="18" rx="3" class="dot s3"/><title>2D · N=1.1M · Q=100k · k=36, eckit, 8 threads: queries 155.0 ms</title></g>
+<text x="685.5" y="269.0" class="vlab">eckit, 8 threads · 489.0 ms</text>
 </svg></div></div>
 </section>
 
 <section>
   <h2>Reading the numbers</h2>
   <ul>
-    <li>Tree build: 320.2 ms for eckit vs 331.7 ms for scipy at N = 1.1M. Against the previous run (last column of the table) eckit takes 0.96× its earlier time (geometric mean).</li>
-    <li>With few query points (POIs) the tree build dominates, so eckit and the original are at parity: 0.74× the original's time on average.</li>
-    <li>With many query points eckit is slower, and the gap grows with k: at Q = 100k it takes 5.7× the original's time at k = 1 and 16× at k = 36. Against single-threaded scipy the factors are 2.0× and 3.5×.</li>
-    <li>Three causes, roughly in order: the original queries on all cores (8 here, up to 256 on the full node) while eckit queries run on one thread; eckit's k-d tree query is slower per thread than scipy's at large k; and the per-point Python loop. A separate single-thread check (1M points, 100k queries) put eckit's own C++ batch query at 0.49 s (k = 4) and 2.05 s (k = 36), with the Python loop about 25% slower than that.</li>
+    <li>Tree build: 321.0 ms for eckit vs 346.9 ms for scipy at N = 1.1M. Against the previous run (last column of the table) eckit takes 0.27× its earlier time (geometric mean).</li>
+    <li>With few query points (POIs) the tree build dominates at large N, and eckit takes 0.43× the original's time on average. At small N, scipy with <code>workers=-1</code> takes 29.9 ms where <code>workers=1</code> takes 3.2 ms and eckit 3.4 ms (2D, N = 10k, k = 1): a fixed per-call cost of <code>workers=-1</code>, with no counterpart in eckit's threaded search.</li>
+    <li>With many query points (grid to grid), eckit on 8 threads takes 1.1× the original's time on average: 1.2× in 2D and 0.97× in 3D. The slowest cases relative to scipy are 2D with small N and k ≥ 4, where scipy's multi-threaded queries are faster (1.8× at worst). Against single-threaded scipy, eckit takes 0.35× the time.</li>
+    <li>Since the previous run, <code>nn_lookup</code> makes one batch <code>csr_search_xyz</code> call instead of one Python call per point, eckit queries on threads (OpenMP), and its k-d tree k-nearest search is about 2× faster. Grid-to-grid cases take 0.12× their previous time, POI cases 0.59×.</li>
     <li>Results agree: neighbour indices identical in at least 99.9998% of queries, distances within 1.2e-07 relative.</li>
   </ul>
 </section>
@@ -414,36 +416,36 @@ eckit Search (current): 12.91 s</title></g>
   <div class="figure scroll"><table>
     <thead><tr><th>Dim</th><th>N</th><th>Q</th><th>k</th><th>scipy -1</th><th>scipy 1</th><th>eckit</th>
     <th>KDTree build</th><th>eckit build</th><th>eckit / scipy -1</th><th>eckit / scipy 1</th><th>Same idx</th><th>eckit previous</th></tr></thead>
-    <tbody><tr><td>2D</td><td>10,000</td><td>1,000</td><td>1</td><td>29.3 ms</td><td>3.1 ms</td><td>6.4 ms</td><td>2.4 ms</td><td>2.4 ms</td><td class='em'>0.22×</td><td>2.0×</td><td>100.0000%</td><td>6.4 ms</td></tr>
-<tr><td>2D</td><td>10,000</td><td>1,000</td><td>4</td><td>29.0 ms</td><td>3.2 ms</td><td>7.9 ms</td><td>2.1 ms</td><td>2.3 ms</td><td class='em'>0.27×</td><td>2.4×</td><td>100.0000%</td><td>8.1 ms</td></tr>
-<tr><td>2D</td><td>10,000</td><td>1,000</td><td>36</td><td>29.0 ms</td><td>6.6 ms</td><td>22.2 ms</td><td>2.0 ms</td><td>2.2 ms</td><td class='em'>0.77×</td><td>3.4×</td><td>100.0000%</td><td>27.7 ms</td></tr>
-<tr><td>2D</td><td>10,000</td><td>100,000</td><td>1</td><td>29.2 ms</td><td>48.6 ms</td><td>321.8 ms</td><td>2.6 ms</td><td>2.9 ms</td><td class='em'>11×</td><td>6.6×</td><td>100.0000%</td><td>362.3 ms</td></tr>
-<tr><td>2D</td><td>10,000</td><td>100,000</td><td>4</td><td>32.3 ms</td><td>91.1 ms</td><td>523.8 ms</td><td>2.2 ms</td><td>2.4 ms</td><td class='em'>16×</td><td>5.7×</td><td>100.0000%</td><td>548.1 ms</td></tr>
-<tr><td>2D</td><td>10,000</td><td>100,000</td><td>36</td><td>83.9 ms</td><td>389.9 ms</td><td>2.18 s</td><td>2.1 ms</td><td>2.3 ms</td><td class='em'>26×</td><td>5.6×</td><td>99.9998%</td><td>2.31 s</td></tr>
-<tr><td>2D</td><td>100,000</td><td>1,000</td><td>1</td><td>53.6 ms</td><td>26.9 ms</td><td>27.3 ms</td><td>27.3 ms</td><td>29.1 ms</td><td class='em'>0.51×</td><td>1.0×</td><td>100.0000%</td><td>32.6 ms</td></tr>
-<tr><td>2D</td><td>100,000</td><td>1,000</td><td>4</td><td>57.3 ms</td><td>31.1 ms</td><td>32.1 ms</td><td>29.9 ms</td><td>26.2 ms</td><td class='em'>0.56×</td><td>1.0×</td><td>100.0000%</td><td>34.1 ms</td></tr>
-<tr><td>2D</td><td>100,000</td><td>1,000</td><td>36</td><td>58.1 ms</td><td>34.2 ms</td><td>52.4 ms</td><td>27.5 ms</td><td>24.9 ms</td><td class='em'>0.90×</td><td>1.5×</td><td>100.0000%</td><td>53.3 ms</td></tr>
-<tr><td>2D</td><td>100,000</td><td>100,000</td><td>1</td><td>55.6 ms</td><td>88.0 ms</td><td>346.5 ms</td><td>30.6 ms</td><td>26.9 ms</td><td class='em'>6.2×</td><td>3.9×</td><td>100.0000%</td><td>403.0 ms</td></tr>
-<tr><td>2D</td><td>100,000</td><td>100,000</td><td>4</td><td>77.8 ms</td><td>139.7 ms</td><td>618.9 ms</td><td>30.5 ms</td><td>28.6 ms</td><td class='em'>8.0×</td><td>4.4×</td><td>100.0000%</td><td>592.5 ms</td></tr>
-<tr><td>2D</td><td>100,000</td><td>100,000</td><td>36</td><td>124.0 ms</td><td>516.9 ms</td><td>2.43 s</td><td>30.0 ms</td><td>26.6 ms</td><td class='em'>20×</td><td>4.7×</td><td>99.9998%</td><td>2.37 s</td></tr>
-<tr><td>2D</td><td>1,100,000</td><td>1,000</td><td>1</td><td>349.6 ms</td><td>311.3 ms</td><td>335.1 ms</td><td>306.2 ms</td><td>340.7 ms</td><td class='em'>0.96×</td><td>1.1×</td><td>100.0000%</td><td>350.8 ms</td></tr>
-<tr><td>2D</td><td>1,100,000</td><td>1,000</td><td>4</td><td>373.3 ms</td><td>350.4 ms</td><td>352.0 ms</td><td>347.7 ms</td><td>312.0 ms</td><td class='em'>0.94×</td><td>1.0×</td><td>100.0000%</td><td>355.8 ms</td></tr>
-<tr><td>2D</td><td>1,100,000</td><td>1,000</td><td>36</td><td>384.3 ms</td><td>359.3 ms</td><td>358.2 ms</td><td>358.1 ms</td><td>326.8 ms</td><td class='em'>0.93×</td><td>1.00×</td><td>100.0000%</td><td>365.2 ms</td></tr>
-<tr><td>2D</td><td>1,100,000</td><td>100,000</td><td>1</td><td>387.0 ms</td><td>463.7 ms</td><td>752.2 ms</td><td>349.8 ms</td><td>325.0 ms</td><td class='em'>1.9×</td><td>1.6×</td><td>100.0000%</td><td>776.5 ms</td></tr>
-<tr><td>2D</td><td>1,100,000</td><td>100,000</td><td>4</td><td>472.4 ms</td><td>588.2 ms</td><td>1.13 s</td><td>355.0 ms</td><td>321.8 ms</td><td class='em'>2.4×</td><td>1.9×</td><td>100.0000%</td><td>995.1 ms</td></tr>
-<tr><td>2D</td><td>1,100,000</td><td>100,000</td><td>36</td><td>448.8 ms</td><td>919.4 ms</td><td>3.01 s</td><td>348.9 ms</td><td>317.5 ms</td><td class='em'>6.7×</td><td>3.3×</td><td>99.9999%</td><td>2.93 s</td></tr>
-<tr><td>3D</td><td>10,000</td><td>1,000</td><td>1</td><td>31.6 ms</td><td>13.5 ms</td><td>15.9 ms</td><td>2.4 ms</td><td>2.6 ms</td><td class='em'>0.50×</td><td>1.2×</td><td>100.0000%</td><td>15.8 ms</td></tr>
-<tr><td>3D</td><td>10,000</td><td>1,000</td><td>36</td><td>33.4 ms</td><td>22.8 ms</td><td>59.5 ms</td><td>2.4 ms</td><td>2.6 ms</td><td class='em'>1.8×</td><td>2.6×</td><td>100.0000%</td><td>61.3 ms</td></tr>
-<tr><td>3D</td><td>10,000</td><td>100,000</td><td>1</td><td>170.5 ms</td><td>1.12 s</td><td>1.34 s</td><td>2.4 ms</td><td>2.7 ms</td><td class='em'>7.9×</td><td>1.2×</td><td>100.0000%</td><td>1.24 s</td></tr>
-<tr><td>3D</td><td>10,000</td><td>100,000</td><td>36</td><td>286.1 ms</td><td>1.89 s</td><td>5.45 s</td><td>2.5 ms</td><td>2.7 ms</td><td class='em'>19×</td><td>2.9×</td><td>100.0000%</td><td>5.55 s</td></tr>
-<tr><td>3D</td><td>100,000</td><td>1,000</td><td>1</td><td>62.5 ms</td><td>50.1 ms</td><td>46.7 ms</td><td>30.0 ms</td><td>28.9 ms</td><td class='em'>0.75×</td><td>0.93×</td><td>100.0000%</td><td>48.4 ms</td></tr>
-<tr><td>3D</td><td>100,000</td><td>1,000</td><td>36</td><td>59.7 ms</td><td>56.8 ms</td><td>89.4 ms</td><td>29.4 ms</td><td>24.9 ms</td><td class='em'>1.5×</td><td>1.6×</td><td>100.0000%</td><td>105.1 ms</td></tr>
-<tr><td>3D</td><td>100,000</td><td>100,000</td><td>1</td><td>338.1 ms</td><td>1.93 s</td><td>1.88 s</td><td>28.2 ms</td><td>24.8 ms</td><td class='em'>5.6×</td><td>0.97×</td><td>100.0000%</td><td>1.93 s</td></tr>
-<tr><td>3D</td><td>100,000</td><td>100,000</td><td>36</td><td>443.6 ms</td><td>2.94 s</td><td>6.97 s</td><td>30.6 ms</td><td>23.2 ms</td><td class='em'>16×</td><td>2.4×</td><td>100.0000%</td><td>7.58 s</td></tr>
-<tr><td>3D</td><td>1,100,000</td><td>1,000</td><td>1</td><td>378.8 ms</td><td>331.6 ms</td><td>384.8 ms</td><td>299.6 ms</td><td>328.7 ms</td><td class='em'>1.0×</td><td>1.2×</td><td>100.0000%</td><td>385.7 ms</td></tr>
-<tr><td>3D</td><td>1,100,000</td><td>1,000</td><td>36</td><td>340.7 ms</td><td>353.4 ms</td><td>398.5 ms</td><td>299.6 ms</td><td>297.7 ms</td><td class='em'>1.2×</td><td>1.1×</td><td>100.0000%</td><td>477.0 ms</td></tr>
-<tr><td>3D</td><td>1,100,000</td><td>100,000</td><td>1</td><td>781.4 ms</td><td>3.25 s</td><td>4.80 s</td><td>346.9 ms</td><td>305.0 ms</td><td class='em'>6.1×</td><td>1.5×</td><td>100.0000%</td><td>4.91 s</td></tr>
-<tr><td>3D</td><td>1,100,000</td><td>100,000</td><td>36</td><td>886.7 ms</td><td>3.95 s</td><td>12.91 s</td><td>313.4 ms</td><td>328.7 ms</td><td class='em'>15×</td><td>3.3×</td><td>100.0000%</td><td>12.95 s</td></tr></tbody>
+    <tbody><tr><td>2D</td><td>10,000</td><td>1,000</td><td>1</td><td>29.9 ms</td><td>3.2 ms</td><td>3.4 ms</td><td>2.4 ms</td><td>2.6 ms</td><td class='em'>0.11×</td><td>1.1×</td><td>100.0000%</td><td>6.4 ms</td></tr>
+<tr><td>2D</td><td>10,000</td><td>1,000</td><td>4</td><td>29.8 ms</td><td>3.3 ms</td><td>3.5 ms</td><td>2.4 ms</td><td>2.6 ms</td><td class='em'>0.12×</td><td>1.0×</td><td>100.0000%</td><td>7.9 ms</td></tr>
+<tr><td>2D</td><td>10,000</td><td>1,000</td><td>36</td><td>30.4 ms</td><td>6.7 ms</td><td>4.3 ms</td><td>2.4 ms</td><td>2.6 ms</td><td class='em'>0.14×</td><td>0.64×</td><td>100.0000%</td><td>22.2 ms</td></tr>
+<tr><td>2D</td><td>10,000</td><td>100,000</td><td>1</td><td>31.8 ms</td><td>58.7 ms</td><td>25.6 ms</td><td>2.4 ms</td><td>2.6 ms</td><td class='em'>0.80×</td><td>0.44×</td><td>100.0000%</td><td>321.8 ms</td></tr>
+<tr><td>2D</td><td>10,000</td><td>100,000</td><td>4</td><td>32.2 ms</td><td>93.2 ms</td><td>58.8 ms</td><td>2.5 ms</td><td>2.8 ms</td><td class='em'>1.8×</td><td>0.63×</td><td>100.0000%</td><td>523.8 ms</td></tr>
+<tr><td>2D</td><td>10,000</td><td>100,000</td><td>36</td><td>89.3 ms</td><td>429.9 ms</td><td>164.0 ms</td><td>2.5 ms</td><td>2.8 ms</td><td class='em'>1.8×</td><td>0.38×</td><td>99.9998%</td><td>2.18 s</td></tr>
+<tr><td>2D</td><td>100,000</td><td>1,000</td><td>1</td><td>58.3 ms</td><td>31.1 ms</td><td>29.1 ms</td><td>30.3 ms</td><td>29.1 ms</td><td class='em'>0.50×</td><td>0.94×</td><td>100.0000%</td><td>27.3 ms</td></tr>
+<tr><td>2D</td><td>100,000</td><td>1,000</td><td>4</td><td>59.5 ms</td><td>31.0 ms</td><td>48.0 ms</td><td>30.0 ms</td><td>27.7 ms</td><td class='em'>0.81×</td><td>1.5×</td><td>100.0000%</td><td>32.1 ms</td></tr>
+<tr><td>2D</td><td>100,000</td><td>1,000</td><td>36</td><td>58.5 ms</td><td>34.2 ms</td><td>49.7 ms</td><td>29.3 ms</td><td>26.4 ms</td><td class='em'>0.85×</td><td>1.5×</td><td>100.0000%</td><td>52.4 ms</td></tr>
+<tr><td>2D</td><td>100,000</td><td>100,000</td><td>1</td><td>60.0 ms</td><td>104.8 ms</td><td>64.7 ms</td><td>29.6 ms</td><td>26.4 ms</td><td class='em'>1.1×</td><td>0.62×</td><td>100.0000%</td><td>346.5 ms</td></tr>
+<tr><td>2D</td><td>100,000</td><td>100,000</td><td>4</td><td>63.3 ms</td><td>140.4 ms</td><td>86.8 ms</td><td>29.8 ms</td><td>27.7 ms</td><td class='em'>1.4×</td><td>0.62×</td><td>100.0000%</td><td>618.9 ms</td></tr>
+<tr><td>2D</td><td>100,000</td><td>100,000</td><td>36</td><td>125.5 ms</td><td>503.2 ms</td><td>185.1 ms</td><td>29.7 ms</td><td>26.3 ms</td><td class='em'>1.5×</td><td>0.37×</td><td>99.9998%</td><td>2.43 s</td></tr>
+<tr><td>2D</td><td>1,100,000</td><td>1,000</td><td>1</td><td>374.5 ms</td><td>347.0 ms</td><td>344.9 ms</td><td>321.0 ms</td><td>310.3 ms</td><td class='em'>0.92×</td><td>0.99×</td><td>100.0000%</td><td>335.1 ms</td></tr>
+<tr><td>2D</td><td>1,100,000</td><td>1,000</td><td>4</td><td>372.2 ms</td><td>353.4 ms</td><td>330.0 ms</td><td>349.9 ms</td><td>316.5 ms</td><td class='em'>0.89×</td><td>0.93×</td><td>100.0000%</td><td>352.0 ms</td></tr>
+<tr><td>2D</td><td>1,100,000</td><td>1,000</td><td>36</td><td>382.9 ms</td><td>355.2 ms</td><td>328.7 ms</td><td>352.2 ms</td><td>315.0 ms</td><td class='em'>0.86×</td><td>0.93×</td><td>100.0000%</td><td>358.2 ms</td></tr>
+<tr><td>2D</td><td>1,100,000</td><td>100,000</td><td>1</td><td>380.1 ms</td><td>463.6 ms</td><td>398.4 ms</td><td>345.7 ms</td><td>315.2 ms</td><td class='em'>1.0×</td><td>0.86×</td><td>100.0000%</td><td>752.2 ms</td></tr>
+<tr><td>2D</td><td>1,100,000</td><td>100,000</td><td>4</td><td>386.0 ms</td><td>499.6 ms</td><td>396.3 ms</td><td>347.6 ms</td><td>318.9 ms</td><td class='em'>1.0×</td><td>0.79×</td><td>100.0000%</td><td>1.13 s</td></tr>
+<tr><td>2D</td><td>1,100,000</td><td>100,000</td><td>36</td><td>455.3 ms</td><td>891.7 ms</td><td>489.0 ms</td><td>354.4 ms</td><td>334.0 ms</td><td class='em'>1.1×</td><td>0.55×</td><td>99.9999%</td><td>3.01 s</td></tr>
+<tr><td>3D</td><td>10,000</td><td>1,000</td><td>1</td><td>30.8 ms</td><td>13.4 ms</td><td>4.9 ms</td><td>2.4 ms</td><td>2.6 ms</td><td class='em'>0.16×</td><td>0.36×</td><td>100.0000%</td><td>15.9 ms</td></tr>
+<tr><td>3D</td><td>10,000</td><td>1,000</td><td>36</td><td>31.3 ms</td><td>22.6 ms</td><td>6.9 ms</td><td>2.4 ms</td><td>2.5 ms</td><td class='em'>0.22×</td><td>0.31×</td><td>100.0000%</td><td>59.5 ms</td></tr>
+<tr><td>3D</td><td>10,000</td><td>100,000</td><td>1</td><td>166.6 ms</td><td>1.12 s</td><td>211.9 ms</td><td>2.3 ms</td><td>2.6 ms</td><td class='em'>1.3×</td><td>0.19×</td><td>100.0000%</td><td>1.34 s</td></tr>
+<tr><td>3D</td><td>10,000</td><td>100,000</td><td>36</td><td>270.0 ms</td><td>1.92 s</td><td>370.3 ms</td><td>2.5 ms</td><td>2.8 ms</td><td class='em'>1.4×</td><td>0.19×</td><td>100.0000%</td><td>5.45 s</td></tr>
+<tr><td>3D</td><td>100,000</td><td>1,000</td><td>1</td><td>59.3 ms</td><td>49.6 ms</td><td>31.0 ms</td><td>30.0 ms</td><td>26.1 ms</td><td class='em'>0.52×</td><td>0.62×</td><td>100.0000%</td><td>46.7 ms</td></tr>
+<tr><td>3D</td><td>100,000</td><td>1,000</td><td>36</td><td>59.8 ms</td><td>59.5 ms</td><td>32.6 ms</td><td>29.8 ms</td><td>26.0 ms</td><td class='em'>0.54×</td><td>0.55×</td><td>100.0000%</td><td>89.4 ms</td></tr>
+<tr><td>3D</td><td>100,000</td><td>100,000</td><td>1</td><td>326.1 ms</td><td>2.05 s</td><td>205.5 ms</td><td>29.9 ms</td><td>26.2 ms</td><td class='em'>0.63×</td><td>0.10×</td><td>100.0000%</td><td>1.88 s</td></tr>
+<tr><td>3D</td><td>100,000</td><td>100,000</td><td>36</td><td>441.4 ms</td><td>3.03 s</td><td>394.4 ms</td><td>30.4 ms</td><td>25.9 ms</td><td class='em'>0.89×</td><td>0.13×</td><td>100.0000%</td><td>6.97 s</td></tr>
+<tr><td>3D</td><td>1,100,000</td><td>1,000</td><td>1</td><td>386.3 ms</td><td>369.8 ms</td><td>338.1 ms</td><td>354.9 ms</td><td>306.7 ms</td><td class='em'>0.88×</td><td>0.91×</td><td>100.0000%</td><td>384.8 ms</td></tr>
+<tr><td>3D</td><td>1,100,000</td><td>1,000</td><td>36</td><td>383.0 ms</td><td>388.9 ms</td><td>352.9 ms</td><td>343.8 ms</td><td>330.7 ms</td><td class='em'>0.92×</td><td>0.91×</td><td>100.0000%</td><td>398.5 ms</td></tr>
+<tr><td>3D</td><td>1,100,000</td><td>100,000</td><td>1</td><td>758.0 ms</td><td>3.09 s</td><td>649.5 ms</td><td>352.1 ms</td><td>330.3 ms</td><td class='em'>0.86×</td><td>0.21×</td><td>100.0000%</td><td>4.80 s</td></tr>
+<tr><td>3D</td><td>1,100,000</td><td>100,000</td><td>36</td><td>894.2 ms</td><td>4.13 s</td><td>909.9 ms</td><td>349.0 ms</td><td>334.0 ms</td><td class='em'>1.0×</td><td>0.22×</td><td>100.0000%</td><td>12.91 s</td></tr></tbody>
   </table></div>
   <p class="meta">Best of 3 runs for small cases, 1 run for large ones. Ratios above 1× mean eckit is slower.</p>
 </section>

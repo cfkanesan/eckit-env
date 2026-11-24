@@ -514,21 +514,33 @@ def nn_lookup(
     dd : numpy.ndarray, shape (p, k)
         array of nearest neighbor distances.
     ii : numpy.ndarray, shape (p, k)
-        array of nearest neighbor grid indexes
+        array of nearest neighbor grid indexes. If the grid has fewer than k
+        points, missing neighbors have index n and distance inf, as
+        ``scipy.spatial.KDTree.query``
+
+    Note
+    ----
+    All points are searched in one batch call, which releases the GIL and runs
+    on threads if eckit is built with OpenMP (``ECKIT_GEO_SEARCH_NUM_THREADS``,
+    read once, before the first search).
     """
 
     # Coordinates are planar (projected CRS) or 3D (with scaled altitude), so the
     # search is on Cartesian (x, y, z) points: distances are Euclidean, as KDTree
-    search = Search.from_xyz(*_to_xyz(grid_coords))
-    queries = np.column_stack(_to_xyz(points)).tolist()
+    search = Search.from_xyz(*_to_xyz(grid_coords), search="knn", k=k)
+    n_grid = len(search)
 
-    n_points = len(queries)
+    # sparse (p, n) matrix of distances, every row with min(k, n) neighbors by
+    # increasing distance; distance_floor=None keeps zero distances (as KDTree)
+    csr = search.csr_search_xyz(*_to_xyz(points), distance_floor=None)
+
+    n_points = csr.shape[0]
+    k_found = min(k, n_grid)
     dd = np.full((n_points, k), np.inf, dtype=np.float64)
-    ii = np.full((n_points, k), search.missing_index, dtype=np.intp)
-    for i, point in enumerate(queries):
-        neighbours = search.search_knn(point, k)  # by increasing distance
-        if neighbours:
-            ii[i, : len(neighbours)], dd[i, : len(neighbours)] = zip(*neighbours)
+    ii = np.full((n_points, k), n_grid, dtype=np.intp)
+    if k_found > 0:
+        dd[:, :k_found] = csr.data.reshape(n_points, k_found)
+        ii[:, :k_found] = csr.indices.reshape(n_points, k_found)
 
     if k == 1:  # as KDTree.query
         dd, ii = dd[:, 0], ii[:, 0]
